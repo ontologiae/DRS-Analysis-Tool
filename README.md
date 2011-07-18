@@ -46,7 +46,8 @@ USE
 Type make clean and make for building.
 You can play with DAT with the OCaml TopLevel, by typing : 
 
-   $ ocaml -I _build/ parser.cmo message.cmo lexer.cmo syntax.cmo -init drsxp.ml 
+    $ ocaml -I _build/ parser.cmo message.cmo lexer.cmo syntax.cmo -init drsxp.ml 
+
 drsxp.ml contains several test exemples.
 It also contains "parse" function, which parses a DRS's string and translate it into the first grammar.
 "parsecomplete" parses the DRS's string and translate it in the DAT's grammar.
