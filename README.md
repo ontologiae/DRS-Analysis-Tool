@@ -37,7 +37,7 @@ a parsecomplete gives :
 DEPENDANCY
 ==========
 
-DAT need ocamlbuild and ocamlyacc/ocamllex. It is possible to use Mehnir, but it is not well tested.
+DAT needs ocamlbuild and ocamlyacc/ocamllex. It is possible to use Mehnir, but it is not well tested.
 
 
 USE

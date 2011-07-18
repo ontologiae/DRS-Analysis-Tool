@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+</head>
+
+  
+
+<body>
+		
+		
+		<p>DRS Analysis Tool (DAT) parses and analyses DRS output from Attempto Controlled English (ACE) parser (APE).</p>
+
+<p>DAT parses the DRS with a first grammar, made specifically for the parser. It is possible, then, to translate this first grammar to a second (the DAT's grammar), made for analysis purpose.
+See syntax.ml for the two grammars.</p>
+
+<p>For instance the sentence "Droopy is happy." is translate by APE in "drs([A, B], [property(A, happy, pos)-1/3, predicate(B, be, named('Droopy'), A)-1/2])".
+A parse function gives :</p>
+
+<p># parse "drs([A, B], [property(A, happy, pos)-1/3, predicate(B, be, named('Droopy'), A)-1/2]).";;</p>
+
+<pre><code>- : Syntax.drs =
+Syntax.DRS ([Syntax.Varp "A"; Syntax.Varp "B"],
+[Syntax.Atomicp
+  (Syntax.Atom ("property",
+    [Syntax.Variable "A"; Syntax.Const "happy"; Syntax.Const "pos"], 1, 3));
+ Syntax.Atomicp
+  (Syntax.Atom ("predicate",
+    [Syntax.Variable "B"; Syntax.Const "be";
+     Syntax.TermAtom
+      (Syntax.Atom ("named", [Syntax.ConstCh "Droopy"], 0, 0));
+     Syntax.Variable "A"],
+    1, 2))])
+</code></pre>
+
+<p>a parsecomplete gives :</p>
+
+<pre><code># parsecomplete "drs([A, B], [property(A, happy, pos)-1/3, predicate(B, be, named('Droopy'), A)-1/2]).";;
+
+- : Syntax.fulldrs =
+Syntax.FullDRS ([Syntax.Var "A"; Syntax.Var "B"],
+[Syntax.Property1Ary (Syntax.Var "A", Syntax.Adj "happy", Syntax.Pos);
+ Syntax.PredicateTransitive (Syntax.Var "B", Syntax.Verbe "be",
+  Syntax.SubAtom (Syntax.Named "Droopy"), Syntax.Var "A")])
+</code></pre>
+
+<h1>DEPENDANCY</h1>
+
+<p>DAT need ocamlbuild and ocamlyacc/ocamllex. It is possible to use Mehnir, but it is not well tested.</p>
+
+<h1>USE</h1>
+
+<p>Type make clean and make for building.
+You can play with DAT with the OCaml TopLevel, by typing : </p>
+
+<pre><code>$ ocaml -I _build/ parser.cmo message.cmo lexer.cmo syntax.cmo -init drsxp.ml 
+
+</code></pre>
+
+<p>drsxp.ml contains several test exemples.
+It also contains "parse" function, which parses a DRS's string and translate it into the first grammar.
+"parsecomplete" parses the DRS's string and translate it in the DAT's grammar.</p>
+</body>
+</html>

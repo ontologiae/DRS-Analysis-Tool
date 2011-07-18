@@ -24,7 +24,6 @@ web: html
 	echo '<div class="lang">' > web.html
 	echo "<h3>$(TARGET)</h3>" >> web.html
 	echo '<div class="version">Last update: ' >> web.html
-	cat version.txt >> web.html
 	echo '</div>' >> web.html
 	echo '<div class="description">' >> web.html
 	cat description.html >> web.html
@@ -36,8 +35,9 @@ web: html
 	echo "</div>" >> web.html
 
 html:
-	$(CAML2HTML) -nf -ln -noannot -o ../html/$(TARGET).html $(SOURCES)
+	/bin/mkdir html
+	$(CAML2HTML) -nf -ln -noannot -o html/$(TARGET).html $(SOURCES)
 
 clean:
-	/bin/rm -f web.html
+	/bin/rm -rf web.html html/
 	$(OCAMLBUILD) -clean
