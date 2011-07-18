@@ -1,0 +1,9 @@
+KNOWN ISSUES
+============
+
+let e1 = "drs([A, B], [predicate(A, believe, named('John'), B)-1/2, B:drs([C], [predicate(C, sleep, named('Mary'))-1/5])]).";;
+parse e1;;
+The parser doesn't manage "B:drs"
+
+let e2 = "drs([A, B], [predicate(A, believe, named('John'), B)-1/2, [predicate(C, sleep, named('Mary'))-1/5]]).";
+parse e2;;
