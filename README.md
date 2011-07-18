@@ -7,8 +7,9 @@ For instance the sentence "Droopy is happy." is translate by APE in "drs([A, B],
 A parse function gives :
 
    # parse "drs([A, B], [property(A, happy, pos)-1/3, predicate(B, be, named('Droopy'), A)-1/2]).";;
-   - : Syntax.drs =
-   Syntax.DRS ([Syntax.Varp "A"; Syntax.Varp "B"],
+
+    - : Syntax.drs =
+    Syntax.DRS ([Syntax.Varp "A"; Syntax.Varp "B"],
     [Syntax.Atomicp
       (Syntax.Atom ("property",
         [Syntax.Variable "A"; Syntax.Const "happy"; Syntax.Const "pos"], 1, 3));
@@ -19,11 +20,14 @@ A parse function gives :
           (Syntax.Atom ("named", [Syntax.ConstCh "Droopy"], 0, 0));
          Syntax.Variable "A"],
         1, 2))])
+
+
 a parsecomplete gives :
 
-   # parsecomplete "drs([A, B], [property(A, happy, pos)-1/3, predicate(B, be, named('Droopy'), A)-1/2]).";;
-   - : Syntax.fulldrs =
-   Syntax.FullDRS ([Syntax.Var "A"; Syntax.Var "B"],
+    # parsecomplete "drs([A, B], [property(A, happy, pos)-1/3, predicate(B, be, named('Droopy'), A)-1/2]).";;
+
+    - : Syntax.fulldrs =
+    Syntax.FullDRS ([Syntax.Var "A"; Syntax.Var "B"],
     [Syntax.Property1Ary (Syntax.Var "A", Syntax.Adj "happy", Syntax.Pos);
      Syntax.PredicateTransitive (Syntax.Var "B", Syntax.Verbe "be",
       Syntax.SubAtom (Syntax.Named "Droopy"), Syntax.Var "A")])
@@ -41,6 +45,7 @@ USE
 
 Type make clean and make for building.
 You can play with DAT with the OCaml TopLevel, by typing : 
+
    $ ocaml -I _build/ parser.cmo message.cmo lexer.cmo syntax.cmo -init drsxp.ml 
 drsxp.ml contains several test exemples.
 It also contains "parse" function, which parses a DRS's string and translate it into the first grammar.
