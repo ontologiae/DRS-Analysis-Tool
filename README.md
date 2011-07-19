@@ -48,6 +48,6 @@ You can play with DAT with the OCaml TopLevel, by typing :
 
     $ ocaml -I _build/ parser.cmo message.cmo lexer.cmo syntax.cmo -init drsxp.ml 
 
-drsxp.ml contains several test exemples.
+drsxp.ml contains several test examples.
 It also contains "parse" function, which parses a DRS's string and translate it into the first grammar.
 "parsecomplete" parses the DRS's string and translate it in the DAT's grammar.

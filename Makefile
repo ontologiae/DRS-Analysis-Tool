@@ -4,6 +4,7 @@ SOURCES = \
 	syntax.ml \
 	lexer.mll \
 	parser.mly \
+	paraphraser.ml \
 
 OCAMLBUILD=ocamlbuild 
 #-use-menhir

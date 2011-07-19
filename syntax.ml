@@ -1,10 +1,5 @@
-
-
-(*let a = ( ("pere",[Var("X",2);Var("Y",2)]), [("fils",[Var("Y",2);Var("X",2)])] );;  
-let b = ( ("pere",[Const("j");Const("b")]), ([]:(string * Syntax.term list) list))
-let mygoal = [("pere",[Var("X",1);Const("b")])];;*)
  
-    
+(* This first grammar is just made for the parser *)    
 type
  drs = DRS of domainp * conditionsp
 and
@@ -29,7 +24,7 @@ type toplevel_cmd =
 
 
 
-
+(* This grammar is made for analysis, each specific ACE atom are represented *)
 type fulldrs = FullDRS of domain * conditions
 and conditions = atom list
 and domain = var list
@@ -51,6 +46,8 @@ and op = Eq | Geq | Greater | Leq | Less | Exactly | NaOp (*Eq stands for “equ
 and degre = Pos | Pos_as | Comp | Comp_than | Sup
 and compTarget = Subj | Obj
 and countable = NotCountable | Number of int
+and grammaticalNumber = Plural | Singular | Partitive
+
 and atom = 
 (* Ref A variable that stands for this relation and that is used to attach modiﬁers (i.e. adverbs and 
 prepositional phrases). 
@@ -61,10 +58,9 @@ IndObjRef A variable or expression that stands for the indirect object.
 *)
   Operator2 of operator * fulldrs * fulldrs 
 | Operator1 of operator * fulldrs  
-| PredicateIntransitive of var * verbe * var (*Subject*)
-| PredicateTransitive of var * verbe * var * var (*Subject  COD *)
-| PredicateDiTransitive of var * verbe * var * var * var (*Subject COD COI*)
-
+| PredicateIntransitive of var * verbe * var * grammaticalNumber(*Subject*)
+| PredicateTransitive of var * verbe * var * var * grammaticalNumber(*Subject  COD *)
+| PredicateDiTransitive of var * verbe * var * var * var * grammaticalNumber(*Subject COD COI*)
 
 (* Ref The variable that stands for this object and that is used for references. 
 Noun The noun (mass or countable) that was used to introduce the object. 
@@ -105,12 +101,10 @@ CompTarget This is one of {subj,obj} and it deﬁnes for transitive adjectives w
 
 | Query of var * pronom_interrogatif
 | Rien ;;
-(*
 
-let l = lexer "drs([A, B], [object(A, webpage, countable, na, eq, 1)-1/8, predicate(B, be, named('MywebPage'), A)-1/4]).";;
-let l = lexer "drs([A, B, C], [object(A, webpage, countable, na, eq, 2)-1/4, relation(B, of, A)-1/5, object(B, name, countable, na, eq, 1)-1/7, predicate(C, be, B, string(toto))-1/8])"
 
- *)
+
+(* Some little function to help analysis of the first grammar*)
 let getClassType = function
   | "dom" -> Dom
   | "countable" -> Countable
@@ -156,6 +150,7 @@ let getQuestionWord = function
   | "what" -> What
   | _ -> What
 
+(*toString functions*)           
 let getCount a = try Number (int_of_string a)
 with 
   | Failure("int_of_string") -> NotCountable;;
@@ -169,7 +164,7 @@ let rec term2string = function
 and  atom2String = function
   |  Atom ( a , lst, x, y) -> (a^"("^(String.concat "," (List.map term2string lst))^")");;
     
-
+(*Conversion functions *)
 let varp2var = function
   | Varp a -> Var a;;
 
@@ -181,28 +176,54 @@ and  conditionDRS2ConditionFullDRS = function
   | Operatorp2(op,a,b) -> Operator2 ( op, drs_to_fulldrs a, drs_to_fulldrs b)
   | Atomicp a ->  atom2primitives a
 
+(* convert ACE atoms to specific predicate*)                    
 and atom2primitives = function
 (*Transformations spécifiques*)
-   | Atom("object", [Variable var; Const name; Const countable; Const unittype; Const op; Nbr count],x,y) -> Object(Var var, Nom(name), getClassType countable, getUnitType unittype, getOp op, Number count,x,y)
-   | Atom("object", [Variable var; Const name; Const countable; Const unittype; Const op; Const count],x,y) -> Object(Var var, Nom(name), getClassType countable, getUnitType unittype, getOp op, getCount count,x,y)
-  |  Atom("object", [Variable var; ConstCh name; Const countable; Const unittype; Const op; Nbr count],x,y) -> Object(Var var, Nom(name), getClassType countable, getUnitType unittype, getOp op, Number count,x,y)
-  |  Atom("object", [Variable var; ConstCh name; Const countable; Const unittype; Const op; Const count],x,y) -> Object(Var var, Nom(name), getClassType countable, getUnitType unittype, getOp op, getCount count,x,y)
-(*TODO : Vérifier ce cas, le coup de forcer le sujet sur le name, c'est peut être pas général...*)
-   | Atom("predicate",[ ref ;  verb; subject; cod ; coi ],x,y) ->  PredicateDiTransitive(atomNamedString2NamedString  ref ,Verbe (extractString verb), atomNamedString2NamedString  subject , atomNamedString2NamedString cod, atomNamedString2NamedString coi)
-  |  Atom("predicate",[ ref ;   verb; subject; cod ],x,y) -> PredicateTransitive(atomNamedString2NamedString  ref ,Verbe (extractString verb), atomNamedString2NamedString  subject , atomNamedString2NamedString cod)
-  |  Atom("predicate",[ ref ;  verb; subject ;  ],x,y) ->  PredicateIntransitive(atomNamedString2NamedString  ref ,Verbe (extractString verb), atomNamedString2NamedString  subject)
-  |  Atom("property",[ref;adjective;degree],x,y) -> Property1Ary (atomNamedString2NamedString ref, Adj (extractString adjective), getDegree (extractString degree))
-  |  Atom("property",[ref;adjective;degree;ref2],x,y) -> Property2Ary (atomNamedString2NamedString ref, Adj (extractString adjective), getDegree (extractString degree),atomNamedString2NamedString ref2)
- |  Atom("property",[ref;adjective;degree;ref2;comptarget;ref3],x,y) -> Property3Ary (atomNamedString2NamedString ref, Adj (extractString adjective), atomNamedString2NamedString ref2, getDegree (extractString degree), getCompTarget (extractString comptarget), atomNamedString2NamedString ref3)
-  | Atom("relation",[ref1; Const "of";ref2],x,y ) -> Relation(atomNamedString2NamedString ref1, atomNamedString2NamedString ref2)
-  | Atom("modifier_adv",[ref; adverb;degree],x,y) -> Modifier_Adv( atomNamedString2NamedString ref, Adv (extractString adverb), getDegree (extractString degree))
-  | Atom("modifier_pp", [ref1;preposition;ref2],x,y) -> Modifier_pp (atomNamedString2NamedString ref1, Preposition (extractString preposition), atomNamedString2NamedString ref2)
-  | Atom("has_part", [groupref;memberref],x,y) -> HasPart(atomNamedString2NamedString groupref,atomNamedString2NamedString memberref)
-  | Atom("query",[ref;questionWord],x,y) -> Query(atomNamedString2NamedString ref, getQuestionWord (extractString questionWord))
+   | Atom("object", [Variable var; Const  name; Const countable; Const unittype; Const op; Nbr    count],x,y) -> 
+       Object(Var var, Nom(name), getClassType countable, getUnitType unittype, getOp op, Number count,x,y)
+
+   | Atom("object", [Variable var; Const  name; Const countable; Const unittype; Const op; Const  count],x,y) -> 
+       Object(Var var, Nom(name), getClassType countable, getUnitType unittype, getOp op, getCount count,x,y)
+
+  |  Atom("object", [Variable var; ConstCh name; Const countable; Const unittype; Const op; Nbr   count],x,y) -> 
+      Object(Var var, Nom(name), getClassType countable, getUnitType unittype, getOp op, Number count,x,y)
+
+  |  Atom("object", [Variable var; ConstCh name; Const countable; Const unittype; Const op; Const count],x,y) -> 
+      Object(Var var, Nom(name), getClassType countable, getUnitType unittype, getOp op, getCount count,x,y)
+
+  | Atom("predicate",[ ref ;  verb; subject; cod ; coi ],x,y) ->  
+       PredicateDiTransitive(atomNamedString2NamedString  ref ,Verbe (extractString verb), atomNamedString2NamedString  subject , atomNamedString2NamedString cod, atomNamedString2NamedString coi, Singular)
+
+  |  Atom("predicate",[ ref ;   verb; subject; cod ],     x,y) -> 
+      PredicateTransitive(atomNamedString2NamedString  ref ,Verbe (extractString verb), atomNamedString2NamedString  subject , atomNamedString2NamedString cod, Singular)
+
+  |  Atom("predicate",[ ref ;  verb; subject],            x,y) ->  
+      PredicateIntransitive(atomNamedString2NamedString  ref ,Verbe (extractString verb), atomNamedString2NamedString  subject, Singular)
+
+  |  Atom("property",[ref;adjective;degree],              x,y) -> Property1Ary (atomNamedString2NamedString ref, Adj (extractString adjective), getDegree (extractString degree))
+
+  |  Atom("property",[ref;adjective;degree;ref2],         x,y) -> 
+      Property2Ary (atomNamedString2NamedString ref, Adj (extractString adjective), getDegree (extractString degree),atomNamedString2NamedString ref2)
+
+ |  Atom("property",[ref;adjective;degree;ref2;comptarget;ref3],x,y) -> 
+     Property3Ary (atomNamedString2NamedString ref, Adj (extractString adjective), atomNamedString2NamedString ref2, getDegree (extractString degree), getCompTarget (extractString comptarget), atomNamedString2NamedString ref3)
+
+  | Atom("relation",[ref1; Const "of";ref2],    x,y) -> 
+      Relation(atomNamedString2NamedString ref1, atomNamedString2NamedString ref2)
+
+  | Atom("modifier_adv",[ref; adverb;degree],   x,y) -> Modifier_Adv( atomNamedString2NamedString ref, Adv (extractString adverb), getDegree (extractString degree))
+
+  | Atom("modifier_pp", [ref1;preposition;ref2],x,y) -> 
+      Modifier_pp (atomNamedString2NamedString ref1, Preposition (extractString preposition), atomNamedString2NamedString ref2)
+
+  | Atom("has_part", [groupref;memberref],      x,y) -> HasPart(atomNamedString2NamedString groupref,atomNamedString2NamedString memberref)
+
+  | Atom("query",[ref;questionWord],            x,y) -> Query(atomNamedString2NamedString ref, getQuestionWord (extractString questionWord))
+
   | Atom(a, l,x,y) -> print_endline ("Error with atom :"^(atom2String (Atom(a,l,x,y)))^". Check you're using ACE 6.6"); Rien
 
 
- (* |  Atom(;;*)
+
 
 and atomNamedString2NamedString = function
   | TermAtom(Atom("named",[ConstCh properName ],a,b)) -> SubAtom(Named properName )
@@ -217,6 +238,5 @@ and  extractString =  function
   | ConstCh a ->  a
   | Const a  ->  a
   | Variable a -> a;; 
-(*TODO : un reduce, qui va unifier les variables instanciées une seule fois*)
 
 

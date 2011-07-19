@@ -7,3 +7,11 @@ The parser doesn't manage "B:drs"
 
 let e2 = "drs([A, B], [predicate(A, believe, named('John'), B)-1/2, [predicate(C, sleep, named('Mary'))-1/5]]).";
 parse e2;;
+
+let e3 = "drs([A, B], [property(A, great, comp_than, real(2.3))-1/3, predicate(B, be, real(3.5), A)-1/2]).";;
+
+parse "drs([A, B, C], [object(A, value, countable, na, eq, 1)-1/2, object(B, something, dom, na, na, na)-1/10, predicate(C, be, A, expr(*, expr(/, expr(+, int(1), int(2)), B), int(4)))-1/3]).";;
+
+parse "drs([A, B], [relation(B, of, list([int(3), real(4.5), named(ab), named('John'), expr(+, int(1), int(2))]))-1/8, property(B, rst, pos)-1/6, object(B, element, countable, na, eq, 1)-1/7, predicate(A, be, int(3), B)-1/2]).";;
+
+ parse "drs([A], [predicate(A, contain, set([int(3), int(6), list([int(1), int(2)])]), int(6))-1/12]).";;
