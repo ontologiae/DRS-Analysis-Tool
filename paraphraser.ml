@@ -64,10 +64,18 @@ let rec checkIfPredicateSingularOrPlural drs = function
 
 let rec paraphraser drs = function
   | Object( Var a, Nom name,  countable,  unittype,  op, count,x,y) , true            ->  "There is "^(op2str op)^(num2str count)^name^" "^a
+
   | Object( Var a, Nom name,  countable,  unittype,  op, count,x,y) , false           ->  (op2str op)^(num2str count)^name^" "
-  | PredicateTransitive(Var ref, Verbe verbe, Var  subject , cod, gramnbr) as verb, t -> (paraphraseForVar drs (Var subject))^" "^(verb2str (verbe,(checkIfPredicateSingularOrPlural drs verb)))^(paraphraseForVar drs cod )^" "
-  | PredicateIntransitive(Var ref, Verbe verbe, Var  subject , gramnbr) as verb, t -> (paraphraseForVar drs (Var subject))^" "^(verb2str (verbe,(checkIfPredicateSingularOrPlural drs verb)))^" "
-  | PredicateDiTransitive(Var ref, Verbe verbe, Var  subject , cod, coi, gramnbr) as verb, t -> (paraphraseForVar drs (Var subject))^" "^(verb2str (verbe,(checkIfPredicateSingularOrPlural drs verb)))^(paraphraseForVar drs cod )^" to"^(paraphraseForVar drs coi )
+
+  | PredicateTransitive(Var ref, Verbe verbe, Var  subject , cod, gramnbr) as verb, t -> 
+      (paraphraseForVar drs (Var subject))^" "^(verb2str (verbe,(checkIfPredicateSingularOrPlural drs verb)))^(paraphraseForVar drs cod )^" "
+
+  | PredicateIntransitive(Var ref, Verbe verbe, Var  subject , gramnbr) as verb, t -> 
+      (paraphraseForVar drs (Var subject))^" "^(verb2str (verbe,(checkIfPredicateSingularOrPlural drs verb)))^" "
+
+  | PredicateDiTransitive(Var ref, Verbe verbe, Var  subject , cod, coi, gramnbr) as verb, t -> 
+      (paraphraseForVar drs (Var subject))^" "^(verb2str (verbe,(checkIfPredicateSingularOrPlural drs verb)))^(paraphraseForVar drs cod )^" to"^(paraphraseForVar drs coi )
+
 and paraphraseForVar drs v = (paraphraser drs ((getItemByVarIntoDRS v drs), false));; 
  
 (*
