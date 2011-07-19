@@ -15,3 +15,5 @@ parse "drs([A, B, C], [object(A, value, countable, na, eq, 1)-1/2, object(B, som
 parse "drs([A, B], [relation(B, of, list([int(3), real(4.5), named(ab), named('John'), expr(+, int(1), int(2))]))-1/8, property(B, rst, pos)-1/6, object(B, element, countable, na, eq, 1)-1/7, predicate(A, be, int(3), B)-1/2]).";;
 
  parse "drs([A], [predicate(A, contain, set([int(3), int(6), list([int(1), int(2)])]), int(6))-1/12]).";;
+
+* Accorder nom avec singulier/pluriel

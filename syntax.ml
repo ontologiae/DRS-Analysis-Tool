@@ -82,7 +82,7 @@ Adjective The intransitive or transitive adjective.
 Degree This is one of {pos,pos as,comp,comp than,sup} and it deﬁnes the degree of the adjective. Positive and comparative forms can have an additional comparison target (“as rich as ...”, “richer than ...”), and for those cases pos as and comp than are used. 
 
 CompTarget This is one of {subj,obj} and it deﬁnes for transitive adjectives whether the comparison targets the subject 
- (“John is more fond-of Mar y than Bill”) or the object (“John is more fond-of Mar y than of Sue”).
+ (“John is more fond-of Mary than Bill”) or the object (“John is more fond-of Mary than of Sue”).
  *)
 | Property1Ary of var * adjectif * degre 
 | Property2Ary of var * adjectif * degre * var
