@@ -11,7 +11,7 @@ conditionDRSp = Operatorp2 of operator * drs * drs | Operatorp1 of operator * dr
 and
  varp = Varp of string
 and name = string
-and operator = Imply | Equal | Different | Inter | Union | Command | Must | Can | May | Not | Naf
+and operator = Imply | Equal | Different | Inter | Union | Command | Must | Can | May | Not | Naf | Command
 
 and atomp = Atom of name * term list * int * int(*Les deux positions*)
 

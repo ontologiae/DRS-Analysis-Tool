@@ -25,6 +25,7 @@ let verb2str = function
 
 (*TODO let checkGrammaticalNumber = ();; *)
 
+(*TODO : gérer le cas où le var n'est pas une var mais un subatom avec un Named ou un String dedans...*)
 let rec getItemByVar var = function
   | Object(  ref,  name,  countable,  unittype,  op, count,x,y)         as self -> if ref = var then [self] else [Rien]
   | PredicateTransitive( ref, verb,   subject , cod, gramnbr )          as self -> if ref = var then [self] else [Rien]
@@ -61,22 +62,50 @@ let rec checkIfPredicateSingularOrPlural drs = function
 
 
 
+let rec paraphraser = function
+  | FullDRS( varlist, Operator2(Imply, drs1 ,drs2)::drsqueue ) as drs -> 
+      "if "^((paraphraser drs1)^"then "^(paraphraser drs2)^".\n"^(String.concat " " (List.map (paraphraser_atom drs false) drsqueue)))
 
-let rec paraphraser drs = function
-  | Object( Var a, Nom name,  countable,  unittype,  op, count,x,y) , true            ->  "There is "^(op2str op)^(num2str count)^name^" "^a
+  | FullDRS( varlist, Operator1(Command, drs1)::drsqueue ) as drs ->
+     (paraphraser drs1)^".\n"^(String.concat " " (List.map (paraphraser_atom drs false) drsqueue))
 
-  | Object( Var a, Nom name,  countable,  unittype,  op, count,x,y) , false           ->  (op2str op)^(num2str count)^name^" "
+  | FullDRS (varlist , lst )  as drs ->
+      (String.concat " " (List.map (paraphraser_atom drs false) lst))
+                     
 
-  | PredicateTransitive(Var ref, Verbe verbe, Var  subject , cod, gramnbr) as verb, t -> 
+and  paraphraser_atom drs complet = function
+  | Object( Var a, Nom name,  countable,  unittype,  op, count,x,y)           ->  if complet = true then "There is "^(op2str op)^(num2str count)^name^" "^a
+    else (op2str op)^(num2str count)^name^" "
+
+
+  | PredicateTransitive(Var ref, Verbe verbe, Var  subject , cod, gramnbr) as verb -> 
       (paraphraseForVar drs (Var subject))^" "^(verb2str (verbe,(checkIfPredicateSingularOrPlural drs verb)))^(paraphraseForVar drs cod )^" "
 
-  | PredicateIntransitive(Var ref, Verbe verbe, Var  subject , gramnbr) as verb, t -> 
+  | PredicateIntransitive(Var ref, Verbe verbe, Var  subject , gramnbr) as verb -> 
       (paraphraseForVar drs (Var subject))^" "^(verb2str (verbe,(checkIfPredicateSingularOrPlural drs verb)))^" "
 
-  | PredicateDiTransitive(Var ref, Verbe verbe, Var  subject , cod, coi, gramnbr) as verb, t -> 
+  | PredicateDiTransitive(Var ref, Verbe verbe, Var  subject , cod, coi, gramnbr) as verb-> 
       (paraphraseForVar drs (Var subject))^" "^(verb2str (verbe,(checkIfPredicateSingularOrPlural drs verb)))^(paraphraseForVar drs cod )^" to"^(paraphraseForVar drs coi )
 
-and paraphraseForVar drs v = (paraphraser drs ((getItemByVarIntoDRS v drs), false));; 
+  | PredicateDiTransitive(Var ref, Verbe verbe, subject , cod, coi, gramnbr) as verb-> 
+      (stringOfVar drs subject)^" "^(verb2str (verbe,(checkIfPredicateSingularOrPlural drs verb)))^(paraphraseForVar drs cod )^" to"^(paraphraseForVar drs coi )
+
+  | PredicateTransitive(Var ref, Verbe verbe,   subject , cod, gramnbr) as verb -> 
+      (stringOfVar drs subject)^" "^(verb2str (verbe,(checkIfPredicateSingularOrPlural drs verb)))^(paraphraseForVar drs cod )^" "
+
+   | PredicateIntransitive(Var ref, Verbe verbe,   subject , gramnbr) as verb -> 
+      (stringOfVar drs subject)^" "^(verb2str (verbe,(checkIfPredicateSingularOrPlural drs verb)))^" "
+ (*TODO généraliser la gestion du sujet COD ou var, parce que sinon on va avoir 30 000 cas*)
+  |  Named a -> a
+  |  String a -> a
+(*  | Operator2( Imply, d1 ,d2) *)
+
+and paraphraseForVar drs v = (paraphraser_atom drs false (getItemByVarIntoDRS v drs))
+and stringOfVar drs = function
+  | Var a -> a
+  | ConstStr a -> a
+  | Num a -> string_of_int a
+  | SubAtom a -> paraphraser_atom  drs false a;; 
  
 (*
   | Object(Var var, Nom(name), getClassType countable, getUnitType unittype, getOp op, getCount count,x,y)
@@ -97,4 +126,4 @@ and paraphraseForVar drs v = (paraphraser drs ((getItemByVarIntoDRS v drs), fals
   | print_endline ("Error with atom :"^(atom2String (Atom(a,l,x,y)))^". Check you're using ACE 6.6"); Rien
  *)
 let l = parsecomplete "drs([A, B, C, D], [object(A, guy, countable, na, eq, 2)-1/2, object(B, balloon, countable, na, eq, 2)-1/5, object(C, girl, countable, na, eq, 2)-1/8, predicate(D, give, A, B, C)-1/3]).";;
-paraphraser l  ((PredicateDiTransitive (Var "D", Verbe "give", Var "A", Var "B", Var "C",Singular)),false);; 
+paraphraser_atom l  false (PredicateDiTransitive (Var "D", Verbe "give", Var "A", Var "B", Var "C",Singular));; 

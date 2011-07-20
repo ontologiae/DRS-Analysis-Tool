@@ -28,7 +28,7 @@
 %token MUST
 %token MAY
 %token CAN
-%token IMPLY, UNION
+%token IMPLY, UNION, COMMAND
 
 
 %token EOF
