@@ -1,4 +1,4 @@
- 
+#require "Extlib";;
 (* This first grammar is just made for the parser *)    
 type
  drs = DRS of domainp * conditionsp
@@ -11,7 +11,9 @@ conditionDRSp = Operatorp2 of operator * drs * drs | Operatorp1 of operator * dr
 and
  varp = Varp of string
 and name = string
-and operator = Imply | Equal | Different | Inter | Union | Command | Must | Can | May | Not | Naf | Command
+(* By defining Command, Rule, Definition, Fact and Query, we can prebuild a first help
+to a semantic analysis*)
+and operator = Imply | Equal | Different | Inter | Union |  Must | Can | May | Not | Naf  | Rule | Definition | Command | Query | Fact
 
 and atomp = Atom of name * term list * int * int(*Les deux positions*)
 
@@ -168,6 +170,10 @@ and  atom2String = function
 let varp2var = function
   | Varp a -> Var a;;
 
+
+
+
+(** Conversion drs --> FulDRS *)
 let rec drs_to_fulldrs = function
   | DRS (d,c) -> FullDRS ( List.map varp2var d,  List.map conditionDRS2ConditionFullDRS c)
 
@@ -238,5 +244,130 @@ and  extractString =  function
   | ConstCh a ->  a
   | Const a  ->  a
   | Variable a -> a;; 
+
+
+
+
+let exists_Object      l = List.exists (fun e -> match e with | Object(_, _, _,_,_,_,_,_) -> true | _ -> false ) l;;
+let exists_Predicate   l = List.exists (fun e -> match e with 
+                                                | PredicateIntransitive (_, _, _,_)     -> true
+                                                | PredicateTransitive   (_, _, _,_,_)   -> true
+                                                | PredicateDiTransitive (_, _, _,_,_,_) -> true
+                                                | _                                     -> false ) 
+                                        l;;
+let exists_Modifier_pp l = List.exists (fun e -> match e with | Modifier_pp(_, _, _) -> true | _ -> false ) l;;
+
+let paraphrase_phrase_simple liste = "";;
+
+let trouve_verbe lst     = List.find (fun e -> match e with 
+                                                | PredicateIntransitive (_, _, _,_)     -> true
+                                                | PredicateTransitive   (_, _, _,_,_)   -> true
+                                                | PredicateDiTransitive (_, _, _,_,_,_) -> true
+                                                | _ -> false )  lst;;
+
+
+
+
+
+let rec getItemsByVar var = function
+  | Object(  ref,  name,  countable,  unittype,  op, count,x,y)         as self -> if ref = var then [self] else []
+  | PredicateTransitive( ref, verb,   subject , cod, gramnbr )          as self -> if ref = var then [self] else []
+  | PredicateDiTransitive(  ref ,verb,  subject ,  cod,  coi, gramnbr)  as self -> if ref = var then [self] else []
+  | PredicateIntransitive(  ref , verb, subject, gramnbr)               as self -> if ref = var then [self] else []
+  | Property1Ary (ref,  adjective, degree)                              as self -> if ref = var then [self] else []
+  | Property2Ary (ref,  adjective,  degree, ref2)                       as self -> if ref = var then [self] else []
+  | Property3Ary (ref,  adjective,  ref2,  degree,  comptarget, ref3)   as self -> if ref = var then [self] else []
+  | Relation( ref1,  ref2)                                                      -> [] 
+  | Modifier_Adv(  ref, adverb,  degree)                                as self -> if ref = var then [self] else []
+  | Modifier_pp ( ref1,  preposition, ref2)                                     -> [] 
+  | HasPart( groupref, memberref)                                               -> [] 
+  | Query( ref,  questionWord)                                          as self -> if ref = var then [self] else []
+  | Operator2 (op, b, c)                                                        ->  (getItemsByVarIntoDRS var b)::(getItemsByVarIntoDRS var c)::[]
+  | Operator1 (op, b)                                                           -> [(getItemsByVarIntoDRS var b)]
+  | String a                                                                    -> [] 
+  | Named  a                                                                    -> [] 
+  | PartOf(a,b)                                                                 -> [] 
+  | Rien                                                                        -> []
+and getItemsByVarIntoDRS var drs = match drs with
+  | FullDRS (a,b) -> List.find (fun a -> if a = Rien then false else true) (List.flatten (List.map (getItemsByVar var) b)) 
+(*and getItemByVarIntoDRS var drs = match (getItemsByVarIntoDRS var drs) with 
+  | t::q  -> t
+  | t::[] -> t
+  | []    -> Rien*)
+and findItemsInList lst var = List.find (fun e -> List.length (getItemsByVar var e) > 0) lst;;
+
+
+
+let rec remplace_in_list lst res =
+        match lst with
+        | lst -> let verbe = trouve_verbe lst in
+                 (match verbe with
+                 | PredicateIntransitive ( ref , verb, (Var s as subject), gramnbr    )        -> let subj = findItemsInList lst subject in 
+                                                                                           let re   = PredicateIntransitive ( ref , verb, SubAtom subj, gramnbr) in
+                                                                                               remplace_in_list (ExtList.List.remove lst re) (re::res)
+                 | PredicateTransitive   ( ref , verb, (Var s as subject), (Var c as cod), gramnbr )  -> let subj = findItemsInList lst subject in
+                                                                                           let coD  = findItemsInList lst cod in
+                                                                                           let re   = PredicateTransitive(ref , verb, SubAtom subj, SubAtom coD, gramnbr) in
+                                                                                                remplace_in_list (ExtList.List.remove lst re) (re::res)
+
+                 | PredicateDiTransitive ( ref ,verb, (Var s as subject), (Var c as cod), (Var d as coi), gramnbr ) ->  
+                                                                                                let subj = findItemsInList lst subject in
+                                                                                                let coD  = findItemsInList lst cod in
+                                                                                                let coI  = findItemsInList lst coi in
+                                                                                                let re   = PredicateDiTransitive(ref , verb, SubAtom subj, SubAtom coD, SubAtom coI, gramnbr) in
+                                                                                                remplace_in_list (ExtList.List.remove lst re) (re::res)
+
+
+
+                 | PredicateIntransitive ( ref , verb,  subject, gramnbr    )  as p         -> remplace_in_list (ExtList.List.remove lst p) (p::res)
+
+
+
+                 | PredicateTransitive   ( ref , verb,  subject, (Var c as cod), gramnbr )  -> 
+                                                                                           let coD  = findItemsInList lst cod in
+                                                                                           let re   = PredicateTransitive(ref , verb, subject,SubAtom coD, gramnbr) in
+                                                                                                remplace_in_list (ExtList.List.remove lst re) (re::res)
+
+                 | PredicateTransitive   ( ref , verb, (Var s as subject), cod, gramnbr )  -> 
+                                                                                           let coD  = findItemsInList lst cod in
+                                                                                           let re   = PredicateTransitive(ref , verb, subject,SubAtom  coD, gramnbr) in
+                                                                                                remplace_in_list (ExtList.List.remove lst re) (re::res)
+                 | PredicateTransitive   ( ref , verb,  subject, cod, gramnbr )  as p -> 
+                                                                                                remplace_in_list (ExtList.List.remove lst p) (p::res)
+
+
+
+                                                                                                        
+
+                 | PredicateDiTransitive ( ref ,verb,  subject, (Var c as cod), (Var d as coi), gramnbr ) ->  
+                                                                                                let coD  = findItemsInList lst cod in
+                                                                                                let coI  = findItemsInList lst coi in
+                                                                                                let re   = PredicateDiTransitive(ref , verb, subject, SubAtom coD,SubAtom  coI, gramnbr) in
+                                                                                                remplace_in_list (ExtList.List.remove lst re) (re::res)
+                 | PredicateDiTransitive ( ref ,verb, (Var s as subject),  cod, (Var d as coi), gramnbr ) ->  
+                                                                                                let subj = findItemsInList lst subject in
+                                                                                                let coI  = findItemsInList lst coi in
+                                                                                                let re   = PredicateDiTransitive(ref , verb, SubAtom subj, cod,SubAtom coI, gramnbr) in
+                                                                                                remplace_in_list (ExtList.List.remove lst re) (re::res)
+                 | PredicateDiTransitive ( ref ,verb, (Var s as subject), (Var c as cod),  coi, gramnbr ) ->  
+                                                                                               let subj = findItemsInList lst subject in
+                                                                                                let coD  = findItemsInList lst cod in
+                                                                                                let re   = PredicateDiTransitive(ref , verb, SubAtom subj, SubAtom coD,  coi, gramnbr) in
+                                                                                                remplace_in_list (ExtList.List.remove lst re) (re::res)
+                 | PredicateDiTransitive ( ref ,verb,  subject,  cod, (Var c as coi), gramnbr )    ->  
+                                                                                                let coI  = findItemsInList lst coi in
+                                                                                                let re   = PredicateDiTransitive(ref , verb, subject, cod, SubAtom coI, gramnbr) in
+                                                                                                remplace_in_list (ExtList.List.remove lst re) (re::res)
+                 | PredicateDiTransitive ( ref ,verb,  subject,  cod, (Var c as coi), gramnbr )    ->  
+                                                                                                let coI  = findItemsInList lst coi in
+                                                                                                let re   = PredicateDiTransitive(ref , verb, subject, cod,SubAtom  coI, gramnbr) in
+                                                                                                remplace_in_list (ExtList.List.remove lst re) (re::res)  
+                 | _ -> failwith "cas non traité")
+         | []  -> [];;
+
+
+
+
+let treeize_drs  = 1;;
 
 

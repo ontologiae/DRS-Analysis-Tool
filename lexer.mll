@@ -28,9 +28,13 @@ rule token = parse
   | "drs"           { DRS }
   | "=&gt;"         { IMPLY }
   | "MUST"          { MUST }
+  | "must"          { MUST }
   | "MAY"           { MAY }
+  | "may"           { MAY }
+  | "can"           { CAN }
   | "CAN"           { CAN }
   | "COMMAND"       { COMMAND }
+  | "command"       { COMMAND }
   | "v"             { UNION } 
   | '\"' [^'\"']* '\"' { let str = lexeme lexbuf in STRING (String.sub str 1 (String.length str - 2)) }
   | '\'' [^'\'']* '\'' { let str = lexeme lexbuf in STRINGALL (String.sub str 1 (String.length str - 2)) }

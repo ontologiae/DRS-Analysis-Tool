@@ -15,6 +15,13 @@ default: byte
 
 all: byte native html
 
+top: 
+	utop -I _build/ parser.cmo message.cmo lexer.cmo syntax.cmo drsxp.cmo -init paraphraser.ml
+
+stop:
+	utop -I _build/ parser.cmo message.cmo lexer.cmo syntax.cmo drsxp.cmo -init syntax.ml
+
+
 byte:
 	$(OCAMLBUILD) $(TARGET).byte
 
