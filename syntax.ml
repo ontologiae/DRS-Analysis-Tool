@@ -26,6 +26,13 @@ type toplevel_cmd =
 
 
 
+
+
+
+
+
+
+
 (* This grammar is made for analysis, each specific ACE atom are represented *)
 type fulldrs = FullDRS of domain * conditions
 and conditions = atom list
@@ -243,7 +250,9 @@ and atomNamedString2NamedString = function
 and  extractString =  function
   | ConstCh a ->  a
   | Const a  ->  a
-  | Variable a -> a;; 
+  | Variable a -> a
+  | Nbr i      -> string_of_int i
+  | TermAtom a -> failwith "attendu constante";; 
 
 
 
@@ -259,10 +268,16 @@ let exists_Modifier_pp l = List.exists (fun e -> match e with | Modifier_pp(_, _
 
 let paraphrase_phrase_simple liste = "";;
 
-let trouve_verbe lst     = List.find (fun e -> match e with 
-                                                | PredicateIntransitive (_, _, _,_)     -> true
-                                                | PredicateTransitive   (_, _, _,_,_)   -> true
-                                                | PredicateDiTransitive (_, _, _,_,_,_) -> true
+let trouve_element_noeud lst     = List.find (fun e -> match e with 
+                                                | PredicateIntransitive (_, _, _, _)       -> true
+                                                | PredicateTransitive   (_, _, _, _, _)    -> true
+                                                | PredicateDiTransitive (_, _, _, _, _, _) -> true
+                                                | Property2Ary (_, _, _, _ )               -> true
+                                                | Property3Ary (_, _, _, _, _, _)          -> true
+                                                | Relation (_,_)                           -> true
+                                                | Modifier_pp (_, _, _)                    -> true
+                                                | HasPart (_, _)                           -> true
+                                                | PartOf  (_, _)                           -> true
                                                 | _ -> false )  lst;;
 
 
@@ -277,9 +292,9 @@ let rec getItemsByVar var = function
   | Property1Ary (ref,  adjective, degree)                              as self -> if ref = var then [self] else []
   | Property2Ary (ref,  adjective,  degree, ref2)                       as self -> if ref = var then [self] else []
   | Property3Ary (ref,  adjective,  ref2,  degree,  comptarget, ref3)   as self -> if ref = var then [self] else []
-  | Relation( ref1,  ref2)                                                      -> [] 
+  | Relation( ref1,  ref2)                                              as self -> if ref1 = var then [self] else []
   | Modifier_Adv(  ref, adverb,  degree)                                as self -> if ref = var then [self] else []
-  | Modifier_pp ( ref1,  preposition, ref2)                                     -> [] 
+  | Modifier_pp ( ref1,  preposition, ref2)                             as self -> if ref1 = var then  [self] else []
   | HasPart( groupref, memberref)                                               -> [] 
   | Query( ref,  questionWord)                                          as self -> if ref = var then [self] else []
   | Operator2 (op, b, c)                                                        ->  (getItemsByVarIntoDRS var b)::(getItemsByVarIntoDRS var c)::[]
@@ -296,78 +311,76 @@ and getItemsByVarIntoDRS var drs = match drs with
   | []    -> Rien*)
 and findItemsInList lst var = List.find (fun e -> List.length (getItemsByVar var e) > 0) lst;;
 
+let rec substract l1 l2 = List.filter (fun elem -> not (List.mem elem l2) ) l1;;
 
 
-let rec remplace_in_list lst res =
-        match lst with
-        | lst -> let verbe = trouve_verbe lst in
-                 (match verbe with
-                 | PredicateIntransitive ( ref , verb, (Var s as subject), gramnbr    )        -> let subj = findItemsInList lst subject in 
-                                                                                           let re   = PredicateIntransitive ( ref , verb, SubAtom subj, gramnbr) in
-                                                                                               remplace_in_list (ExtList.List.remove lst re) (re::res)
-                 | PredicateTransitive   ( ref , verb, (Var s as subject), (Var c as cod), gramnbr )  -> let subj = findItemsInList lst subject in
-                                                                                           let coD  = findItemsInList lst cod in
-                                                                                           let re   = PredicateTransitive(ref , verb, SubAtom subj, SubAtom coD, gramnbr) in
-                                                                                                remplace_in_list (ExtList.List.remove lst re) (re::res)
+let getAtomOfSubAtom (SubAtom a) = a;;
 
-                 | PredicateDiTransitive ( ref ,verb, (Var s as subject), (Var c as cod), (Var d as coi), gramnbr ) ->  
-                                                                                                let subj = findItemsInList lst subject in
-                                                                                                let coD  = findItemsInList lst cod in
-                                                                                                let coI  = findItemsInList lst coi in
-                                                                                                let re   = PredicateDiTransitive(ref , verb, SubAtom subj, SubAtom coD, SubAtom coI, gramnbr) in
-                                                                                                remplace_in_list (ExtList.List.remove lst re) (re::res)
+let rec remplace_in_list lstinit res =
+        let toSubAtom lsta var = match var with
+        | Var s     as v  -> SubAtom (findItemsInList lsta v)
+        | SubAtom e as s  -> s
+        | Num e as s      -> s
+        | ConstStr e as s -> s in
+        match lstinit with
+        | []  -> res
+        | lst -> try let noeud = trouve_element_noeud lst in
+                 (match noeud with
+                 | PredicateIntransitive ( ref , verb, subject, gramnbr    )   as verbe      -> 
+                                                                                                let subj = toSubAtom lst subject in
+                                                                                                let re   = PredicateIntransitive ( ref , verb, subj, gramnbr) in
+                                                                                                remplace_in_list (substract lst [getAtomOfSubAtom subj;verbe]) (re::res)
+                 | PredicateTransitive   ( ref , verb, subject, cod, gramnbr ) as verbe  -> 
+                                                                                                let subj = toSubAtom lst subject in
+                                                                                                let coD  = toSubAtom lst cod in
+                                                                                                let re   = PredicateTransitive(ref , verb, subj, coD, gramnbr) in
+                                                                                                remplace_in_list (substract lst [getAtomOfSubAtom subj;verbe;getAtomOfSubAtom coD] ) (re::res)
 
-
-
-                 | PredicateIntransitive ( ref , verb,  subject, gramnbr    )  as p         -> remplace_in_list (ExtList.List.remove lst p) (p::res)
-
-
-
-                 | PredicateTransitive   ( ref , verb,  subject, (Var c as cod), gramnbr )  -> 
-                                                                                           let coD  = findItemsInList lst cod in
-                                                                                           let re   = PredicateTransitive(ref , verb, subject,SubAtom coD, gramnbr) in
-                                                                                                remplace_in_list (ExtList.List.remove lst re) (re::res)
-
-                 | PredicateTransitive   ( ref , verb, (Var s as subject), cod, gramnbr )  -> 
-                                                                                           let coD  = findItemsInList lst cod in
-                                                                                           let re   = PredicateTransitive(ref , verb, subject,SubAtom  coD, gramnbr) in
-                                                                                                remplace_in_list (ExtList.List.remove lst re) (re::res)
-                 | PredicateTransitive   ( ref , verb,  subject, cod, gramnbr )  as p -> 
-                                                                                                remplace_in_list (ExtList.List.remove lst p) (p::res)
-
-
-
-                                                                                                        
-
-                 | PredicateDiTransitive ( ref ,verb,  subject, (Var c as cod), (Var d as coi), gramnbr ) ->  
-                                                                                                let coD  = findItemsInList lst cod in
-                                                                                                let coI  = findItemsInList lst coi in
-                                                                                                let re   = PredicateDiTransitive(ref , verb, subject, SubAtom coD,SubAtom  coI, gramnbr) in
-                                                                                                remplace_in_list (ExtList.List.remove lst re) (re::res)
-                 | PredicateDiTransitive ( ref ,verb, (Var s as subject),  cod, (Var d as coi), gramnbr ) ->  
-                                                                                                let subj = findItemsInList lst subject in
-                                                                                                let coI  = findItemsInList lst coi in
-                                                                                                let re   = PredicateDiTransitive(ref , verb, SubAtom subj, cod,SubAtom coI, gramnbr) in
-                                                                                                remplace_in_list (ExtList.List.remove lst re) (re::res)
-                 | PredicateDiTransitive ( ref ,verb, (Var s as subject), (Var c as cod),  coi, gramnbr ) ->  
-                                                                                               let subj = findItemsInList lst subject in
-                                                                                                let coD  = findItemsInList lst cod in
-                                                                                                let re   = PredicateDiTransitive(ref , verb, SubAtom subj, SubAtom coD,  coi, gramnbr) in
-                                                                                                remplace_in_list (ExtList.List.remove lst re) (re::res)
-                 | PredicateDiTransitive ( ref ,verb,  subject,  cod, (Var c as coi), gramnbr )    ->  
-                                                                                                let coI  = findItemsInList lst coi in
-                                                                                                let re   = PredicateDiTransitive(ref , verb, subject, cod, SubAtom coI, gramnbr) in
-                                                                                                remplace_in_list (ExtList.List.remove lst re) (re::res)
-                 | PredicateDiTransitive ( ref ,verb,  subject,  cod, (Var c as coi), gramnbr )    ->  
-                                                                                                let coI  = findItemsInList lst coi in
-                                                                                                let re   = PredicateDiTransitive(ref , verb, subject, cod,SubAtom  coI, gramnbr) in
-                                                                                                remplace_in_list (ExtList.List.remove lst re) (re::res)  
+                 | PredicateDiTransitive ( ref ,verb, subject, cod, coi, gramnbr ) as verbe ->  
+                                                                                                let subj = toSubAtom lst subject in
+                                                                                                let coD  = toSubAtom lst cod in
+                                                                                                let coI  = toSubAtom lst coi in
+                                                                                                let re   = PredicateDiTransitive(ref , verb,  subj, coD, coI, gramnbr) in
+                                                                                                remplace_in_list (substract lst [getAtomOfSubAtom subj;verbe;getAtomOfSubAtom coD;getAtomOfSubAtom coI]) (re::res)
+                | Modifier_pp(  ref1,  preposition, ref2)  as modifier_pp                    -> let cible = toSubAtom lst ref2 in
+                                                                                                let re    = Modifier_pp(ref1, preposition, cible) in
+                                                                                                remplace_in_list (substract lst [getAtomOfSubAtom cible;modifier_pp]) (re::res)
+                (* étendre trouve_verbe vers étendre "centre" qui matchera des Modifier_pp et Modifier_Adv. Le but en fait est de virer les objets libres.
+                 * L'idée générale est de virer les éléments "feuilles". Object est un élément feuille, car n'est pas lié à d'autres variable
+                 * Les feuilles :
+                         * Object
+                         * Named
+                         * String
+                         * Query
+                         * ---> Donc trouve_verbe, deviens trouve_element_noeud soit :
+                                 * PredicateDiTransitive
+                                 * PredicateTransitive
+                                 * PredicateIntransitive
+                                 * Modifier_Adv
+                                 * Modifier_pp
+                                 * Property2Ary
+                                 * Property3Ary
+                                 * Relation
+                                 * HasPart
+                                 * PartOf*)
                  | _ -> failwith "cas non traité")
-         | []  -> [];;
+        with e -> (*Not Found*) res@lstinit
+;;
 
 
+let g = FullDRS ([Var "J1"; Var "K1"; Var "L1"],                                                                                              
+   [Object (Var "J1", Nom "time", Countable, Na, Greater, Number 2, 13, 8);                                                             
+    Object (Var "K1", Nom "day", Countable, Na, Eq, Number 10, 13, 13);
+    PredicateTransitive (Var "L1", Verbe "vote", SubAtom (Named "User1"),
+     Var "J1", Singular);
+    Modifier_pp (Var "L1", Preposition "in", Var "K1");
+    Modifier_pp (Var "L1", Preposition "for", SubAtom (Named "User2"))]);;
 
 
-let treeize_drs  = 1;;
+let lst  = match g with | FullDRS(a,b) -> b;;
+
+let treeize_drs  = 1
+(*On prend les conditions du DRS, on lui donne la phrase*)
+;;
 
 
