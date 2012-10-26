@@ -35,7 +35,10 @@ let err =
  "drs([A, B, C], [has_part(C, named('Droopy'))-1/'', property(A, happy, pos)-1/5, predicate(B, be, C, A)-1/4, has_part(C, named('Jack'))-1/'', object(C, na, countable, na, eq, 2)-1/''])."
 
 let parse = function str -> cmds (lexer str);;
-let parsecomplete str = Syntax.drs_to_fulldrs ( parse str);;
+
+let parsecomplete str = 
+        let drs = Syntax.drs_to_fulldrs ( parse str) in
+        Syntax.treefy_drs drs;;
 
 
 let gros = 

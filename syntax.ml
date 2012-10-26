@@ -1,4 +1,3 @@
-#require "Extlib";;
 (* This first grammar is just made for the parser *)    
 type
  drs = DRS of domainp * conditionsp
@@ -345,6 +344,20 @@ let rec remplace_in_list lstinit res =
                 | Modifier_pp(  ref1,  preposition, ref2)  as modifier_pp                    -> let cible = toSubAtom lst ref2 in
                                                                                                 let re    = Modifier_pp(ref1, preposition, cible) in
                                                                                                 remplace_in_list (substract lst [getAtomOfSubAtom cible;modifier_pp]) (re::res)
+                | Property2Ary(ref,  adjective,  degree, ref2)  as prop2                     -> let cible = toSubAtom lst ref2 in
+                                                                                                let re    =  Property2Ary(ref,  adjective,  degree, cible) in
+                                                                                                remplace_in_list (substract lst [getAtomOfSubAtom cible;prop2]) (re::res)
+
+                                                                                                
+                | Property3Ary(ref,  adjective,  ref2,  degree,  comptarget, ref3) as prop3  -> let cible  = toSubAtom lst ref2 in
+                                                                                                let cible2 = toSubAtom lst ref3 in
+                                                                                                let re    =  Property3Ary(ref,  adjective, cible, degree, comptarget, cible2) in
+                                                                                                remplace_in_list (substract lst [getAtomOfSubAtom cible;prop3]) (re::res)
+
+                | HasPart     (groupref, memberref)  as haspart                              -> let cible  = toSubAtom lst memberref in
+                                                                                                let re     =  HasPart     (groupref, cible) in
+                                                                                                remplace_in_list (substract lst [getAtomOfSubAtom cible;haspart]) (re::res)
+                                                                                                
                 (* étendre trouve_verbe vers étendre "centre" qui matchera des Modifier_pp et Modifier_Adv. Le but en fait est de virer les objets libres.
                  * L'idée générale est de virer les éléments "feuilles". Object est un élément feuille, car n'est pas lié à d'autres variable
                  * Les feuilles :
@@ -352,11 +365,11 @@ let rec remplace_in_list lstinit res =
                          * Named
                          * String
                          * Query
+                         * Modifier_Adv
                          * ---> Donc trouve_verbe, deviens trouve_element_noeud soit :
                                  * PredicateDiTransitive
                                  * PredicateTransitive
                                  * PredicateIntransitive
-                                 * Modifier_Adv
                                  * Modifier_pp
                                  * Property2Ary
                                  * Property3Ary
@@ -377,10 +390,11 @@ let g = FullDRS ([Var "J1"; Var "K1"; Var "L1"],
     Modifier_pp (Var "L1", Preposition "for", SubAtom (Named "User2"))]);;
 
 
-let lst  = match g with | FullDRS(a,b) -> b;;
-
-let treeize_drs  = 1
+let getDRSCondition g  = match g with | FullDRS(a,b) -> b;;
+ 
+let treefy_drs  drs =
+        let conditions =  getDRSCondition drs in
+        remplace_in_list conditions [];;
 (*On prend les conditions du DRS, on lui donne la phrase*)
-;;
 
 
