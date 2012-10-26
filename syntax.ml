@@ -273,7 +273,7 @@ let trouve_element_noeud lst     = List.find (fun e -> match e with
                                                 | PredicateDiTransitive (_, _, _, _, _, _) -> true
                                                 | Property2Ary (_, _, _, _ )               -> true
                                                 | Property3Ary (_, _, _, _, _, _)          -> true
-                                                | Relation (_,_)                           -> true
+                                                | Relation (_,_)                           -> false
                                                 | Modifier_pp (_, _, _)                    -> true
                                                 | HasPart (_, _)                           -> true
                                                 | PartOf  (_, _)                           -> true
@@ -291,7 +291,7 @@ let rec getItemsByVar var = function
   | Property1Ary (ref,  adjective, degree)                              as self -> if ref = var then [self] else []
   | Property2Ary (ref,  adjective,  degree, ref2)                       as self -> if ref = var then [self] else []
   | Property3Ary (ref,  adjective,  ref2,  degree,  comptarget, ref3)   as self -> if ref = var then [self] else []
-  | Relation( ref1,  ref2)                                              as self -> if ref1 = var then [self] else []
+  | Relation( ref1,  ref2)                                              as self -> []
   | Modifier_Adv(  ref, adverb,  degree)                                as self -> if ref = var then [self] else []
   | Modifier_pp ( ref1,  preposition, ref2)                             as self -> if ref1 = var then  [self] else []
   | HasPart( groupref, memberref)                                               -> [] 
@@ -323,13 +323,16 @@ let stringOfVar  = function
 
 let getAtomOfSubAtom (SubAtom a) = a;;
 
-let rec remplace_in_list (lstinit,res) =
-        let toSubAtom lsta var = 
+ let toSubAtom lsta var = 
                 match var with
                 | Var s     as v  -> SubAtom (findItemsInList lsta v)
                 | SubAtom e as s  -> s
                 | Num e as s      -> s
-                | ConstStr e as s -> s in
+                | ConstStr e as s -> s ;;
+
+
+
+let rec remplace_in_list (lstinit,res) =
         match lstinit with
         | []  -> res
         | lst -> try let noeud = trouve_element_noeud lst in
@@ -383,11 +386,11 @@ let rec remplace_in_list (lstinit,res) =
                                                                                                 print_endline ((stringOfVar groupref)^";"^(stringOfVar memberref));
                                                                                                 remplace_in_list ((substract lst [getAtomOfSubAtom source;getAtomOfSubAtom cible;partof]), (re::res))
 
-                | Relation(groupref,memberref)               as relation                     -> let source = toSubAtom lst groupref  in
+               (* | Relation(groupref,memberref)               as relation                     -> let source = toSubAtom lst groupref  in
                                                                                                 let cible  = toSubAtom lst memberref in
                                                                                                 let re     =  Relation     (source, cible) in
                                                                                                 print_endline ((stringOfVar groupref)^";"^(stringOfVar memberref));
-                                                                                                remplace_in_list ((substract lst [getAtomOfSubAtom source;getAtomOfSubAtom cible;relation]), (re::res))
+                                                                                                remplace_in_list ((substract lst [getAtomOfSubAtom source;getAtomOfSubAtom cible;relation]), (re::res))*)
 
 
                                                                                                 
@@ -415,6 +418,32 @@ let rec remplace_in_list (lstinit,res) =
 ;;
 
 
+let rec remplace_in_list_relation (lstinit,res) =
+        let trouve_relation_noeud lst     = List.find (fun e -> match e with 
+                                                | Relation (_,_)                           -> true
+                                                | _ -> false
+                                                ) lst in        
+        match lstinit with
+        | []  -> res
+        | lst -> try let noeud = trouve_relation_noeud lst in
+                 (match noeud with
+                 | Relation(groupref,memberref)               as relation                     -> print_endline "rel";
+                                                                                                print_endline ((stringOfVar groupref)^";"^(stringOfVar memberref));
+                                                                                                let source = toSubAtom lst groupref  in
+                                                                                                let cible  = toSubAtom lst memberref in
+                                                                                                let re     =  Relation     (source, cible) in
+                                                                                                remplace_in_list_relation ((substract lst [getAtomOfSubAtom source;getAtomOfSubAtom cible;relation]), (re::res))
+                | _ -> print_endline ("Cas non trouvé !!!"); res@lst)
+        with e -> let e = Printexc.to_string e in
+                          print_endline ("Rien trouvé !! \n"^e); res@lstinit
+;;
+
+                
+
+
+
+
+
 let g = FullDRS ([Var "J1"; Var "K1"; Var "L1"],                                                                                              
    [Object (Var "J1", Nom "time", Countable, Na, Greater, Number 2, 13, 8);                                                             
     Object (Var "K1", Nom "day", Countable, Na, Eq, Number 10, 13, 13);
@@ -424,11 +453,13 @@ let g = FullDRS ([Var "J1"; Var "K1"; Var "L1"],
     Modifier_pp (Var "L1", Preposition "for", SubAtom (Named "User2"))]);;
 
 
-let getDRSCondition g  = match g with | FullDRS(a,b) -> b;;
+let getDRSCondition g  = match g with | FullDRS(a,b) -> a,b;;
  
 let treefy_drs  drs =
-        let conditions =  getDRSCondition drs in
-        remplace_in_list (conditions,[]);;
+        let variables,conditions =  getDRSCondition drs in
+        let premier_traitement   = remplace_in_list (conditions,[]) in
+        let final                = remplace_in_list_relation (premier_traitement,[]) in
+        (*variables,conditions,*)final;;
 (*On prend les conditions du DRS, on lui donne la phrase*)
 
 
