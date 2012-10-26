@@ -310,8 +310,14 @@ and getItemsByVarIntoDRS var drs = match drs with
   | []    -> Rien*)
 and findItemsInList lst var = List.find (fun e -> List.length (getItemsByVar var e) > 0) lst;;
 
-let rec substract l1 l2 = List.filter (fun elem -> not (List.mem elem l2) ) l1;;
+(*let rec substract l1 l2 = List.filter (fun elem -> not (List.mem elem l2) ) l1;;*)
 
+let rec substract l1 l2 =
+match l1,l2 with
+| [],_ -> []
+| l   , []    -> l 
+| h1::[] , h2::[] -> if h1 = h2 then [] else [h1]
+| h1::t1 , l2 -> let newl2 = (substract l2 [h1] ) in if List.mem h1 l2 then substract t1 newl2 else h1::(substract t1 newl2 );;
 
 
 let stringOfVar  = function
@@ -459,7 +465,7 @@ let getDRSCondition g  = match g with | FullDRS(a,b) -> a,b;;
 let treefy_drs  drs =
         let variables,conditions =  getDRSCondition drs in
         let premier_traitement   = dedouble_object (conditions,[]) in
-        let final                = remplace_in_list (premier_traitement,[]) in
+        let final                = remplace_in_list (conditions,[]) in
         variables,conditions,premier_traitement,final;;
 (* Le problème c'est que les Property1Ary sont "trouvé" avant les objets*)
 (*On prend les conditions du DRS, on lui donne la phrase*)
