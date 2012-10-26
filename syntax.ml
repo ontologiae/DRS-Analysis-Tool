@@ -308,7 +308,7 @@ and getItemsByVarIntoDRS var drs = match drs with
   | t::q  -> t
   | t::[] -> t
   | []    -> Rien*)
-and findItemsInList lst var = List.find (fun e -> List.length (getItemsByVar var e) > 0) lst;;
+and findItemsInList lst var = try List.find (fun e -> List.length (getItemsByVar var e) > 0) lst with e -> let r = Printexc.to_string e in print_endline r;Rien;;
 
 (*let rec substract l1 l2 = List.filter (fun elem -> not (List.mem elem l2) ) l1;;*)
 
@@ -426,8 +426,8 @@ let rec remplace_in_list (lstinit,res) =
                          * Object
                          * Named
                          * String
-                         * Query
-                         * Modifier_Adv
+                        // * Query   NONNN !!!
+                        // * Modifier_Adv
                          * ---> Donc trouve_verbe, deviens trouve_element_noeud soit :
                                  * PredicateDiTransitive
                                  * PredicateTransitive
@@ -465,7 +465,7 @@ let getDRSCondition g  = match g with | FullDRS(a,b) -> a,b;;
 let treefy_drs  drs =
         let variables,conditions =  getDRSCondition drs in
         let premier_traitement   = dedouble_object (conditions,[]) in
-        let final                = remplace_in_list (conditions,[]) in
+        let final                = remplace_in_list (premier_traitement,[]) in
         variables,conditions,premier_traitement,final;;
 (* Le problème c'est que les Property1Ary sont "trouvé" avant les objets*)
 (*On prend les conditions du DRS, on lui donne la phrase*)
