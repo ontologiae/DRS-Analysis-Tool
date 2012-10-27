@@ -1,4 +1,4 @@
-TARGET=drsxp
+TARGET=paraphraser
 
 SOURCES = \
 	syntax.ml \
@@ -19,7 +19,7 @@ top:
 	utop -I _build/ parser.cmo message.cmo lexer.cmo syntax.cmo drsxp.cmo -init paraphraser.ml
 
 stop: clean byte
-	utop -I _build/ parser.cmo message.cmo lexer.cmo syntax.cmo drsxp.cmo -init top.ml 
+	utop -I _build/ parser.cmo message.cmo lexer.cmo syntax.cmo drsxp.cmo paraphraser.cmo -init top.ml 
 
 
 byte:

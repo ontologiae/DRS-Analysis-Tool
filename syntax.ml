@@ -263,9 +263,13 @@ let exists_Predicate   l = List.exists (fun e -> match e with
                                                 | PredicateDiTransitive (_, _, _,_,_,_) -> true
                                                 | _                                     -> false ) 
                                         l;;
-let exists_Modifier_pp l = List.exists (fun e -> match e with | Modifier_pp(_, _, _) -> true | _ -> false ) l;;
+let exists_Modifier_pp  l = List.exists (fun e -> match e with | Modifier_pp(_, _, _) -> true | _ -> false ) l;;
+let exists_Modifier_Adv l = List.exists (fun e -> match e with | Modifier_Adv(_, _, _) -> true | _ -> false ) l;;
+let exists_Relation     l = List.exists (fun e -> match e with | Relation(_, _) -> true | _ -> false ) l;;
 
-let paraphrase_phrase_simple liste = "";;
+
+
+
 
 let trouve_element_noeud lst     = List.find (fun e -> match e with 
                                                 | PredicateIntransitive (_, _, _, _)       -> true
@@ -279,7 +283,15 @@ let trouve_element_noeud lst     = List.find (fun e -> match e with
                                                 | PartOf  (_, _)                           -> true
                                                 | _ -> false )  lst;;
 
+let trouve_verbe lst     = List.find (fun e -> match e with 
+                                                | PredicateIntransitive (_, _, _, _)       -> true
+                                                | PredicateTransitive   (_, _, _, _, _)    -> true
+                                                | PredicateDiTransitive (_, _, _, _, _, _) -> true
+                                                | _ -> false) lst ;;
 
+let trouve_relation_noeud lst     = List.find (fun e -> match e with 
+                                                |  Relation (_,_)                           -> true
+                                                | _ -> false) lst ;;
 
 
 
@@ -314,10 +326,10 @@ and findItemsInList lst var = try List.find (fun e -> List.length (getItemsByVar
 
 let rec substract l1 l2 =
 match l1,l2 with
-| [],_ -> []
-| l   , []    -> l 
+| []     ,      _ -> []
+| l      , []     -> l 
 | h1::[] , h2::[] -> if h1 = h2 then [] else [h1]
-| h1::t1 , l2 -> let newl2 = (substract l2 [h1] ) in if List.mem h1 l2 then substract t1 newl2 else h1::(substract t1 newl2 );;
+| h1::t1 , l2     -> let newl2 = (substract l2 [h1] ) in if List.mem h1 l2 then substract t1 newl2 else h1::(substract t1 newl2 );;
 
 
 let stringOfVar  = function
@@ -338,10 +350,6 @@ let getAtomOfSubAtom (SubAtom a) = a;;
 
 
 let rec dedouble_object (lstinit,res) =
-        let trouve_relation_noeud lst     = List.find (fun e -> match e with 
-                                                | Relation (_,_)                           -> true
-                                                | _ -> false
-                                                ) lst in        
         match lstinit with
         | []  -> res
         | lst -> try let noeud = trouve_relation_noeud lst in
@@ -465,7 +473,8 @@ let getDRSCondition g  = match g with | FullDRS(a,b) -> a,b;;
 let treefy_drs  drs =
         let variables,conditions =  getDRSCondition drs in
         let premier_traitement   = dedouble_object (conditions,[]) in
-        let final                = remplace_in_list (premier_traitement,[]) in
+        let prefinal                = remplace_in_list (premier_traitement,[]) in
+        let final                = List.filter (fun e -> not (exists_Object [e])) prefinal in
         variables,conditions,premier_traitement,final;;
 (* Le problème c'est que les Property1Ary sont "trouvé" avant les objets*)
 (*On prend les conditions du DRS, on lui donne la phrase*)

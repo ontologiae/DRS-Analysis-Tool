@@ -1,6 +1,15 @@
 open Syntax
 open Drsxp
 
+
+type position =
+        | Sujet
+        | COD
+        | COI
+        | In
+        | For;;
+
+
 let op2str = function
   | Eq  ->  " " 
   | Geq  ->  "at least " 
@@ -15,45 +24,16 @@ let num2str = function
   | Number 1 -> "a "
   | Number i -> (string_of_int i)^" ";;
 
-let verb2str = function
-  | "be", Plural     -> "are "
-  | "be", Singular   -> "is "
-  | "be", Partitive  -> "are "
-  |  a, Singular     -> a^"s "
-  |  a, Plural       ->  a^" " ;;
+let verb2str verb sing = 
+        match verb, sing with
+        | "be", Plural     -> "are "
+        | "be", Singular   -> "is "
+        | "be", Partitive  -> "are "
+        |  a, Singular     -> a^"s "
+        |  a, Plural       ->  a^" " ;;
 
 
-(*TODO let checkGrammaticalNumber = ();; *)
-
-(*TODO : gérer le cas où le var n'est pas une var mais un subatom avec un Named ou un String dedans...*)
-let rec getItemsByVar var = function
-  | Object(  ref,  name,  countable,  unittype,  op, count,x,y)         as self -> if ref = var then [self] else []
-  | PredicateTransitive( ref, verb,   subject , cod, gramnbr )          as self -> if ref = var then [self] else []
-  | PredicateDiTransitive(  ref ,verb,  subject ,  cod,  coi, gramnbr)  as self -> if ref = var then [self] else []
-  | PredicateIntransitive(  ref , verb, subject, gramnbr)               as self -> if ref = var then [self] else []
-  | Property1Ary (ref,  adjective, degree)                              as self -> if ref = var then [self] else []
-  | Property2Ary (ref,  adjective,  degree, ref2)                       as self -> if ref = var then [self] else []
-  | Property3Ary (ref,  adjective,  ref2,  degree,  comptarget, ref3)   as self -> if ref = var then [self] else []
-  | Relation( ref1,  ref2)                                                      -> [] 
-  | Modifier_Adv(  ref, adverb,  degree)                                as self -> if ref = var then [self] else []
-  | Modifier_pp ( ref1,  preposition, ref2)                                     -> [] 
-  | HasPart( groupref, memberref)                                               -> [] 
-  | Query( ref,  questionWord)                                          as self -> if ref = var then [self] else []
-  | Operator2 (op, b, c)                                                        -> List.append (getItemsByVarIntoDRS var b) (getItemsByVarIntoDRS var c)
-  | Operator1 (op, b)                                                           -> (getItemsByVarIntoDRS var b)
-  | String a                                                                    -> [] 
-  | Named  a                                                                    -> [] 
-  | PartOf(a,b)                                                                 -> [] 
-  | Rien                                                                        -> []
-
-and getItemsByVarIntoDRS var drs = match drs with
-  | FullDRS (a,b) -> List.filter (fun a -> if a = Rien then false else true) (List.flatten (List.map (getItemsByVar var) b)) 
-and getItemByVarIntoDRS var drs = match (getItemsByVarIntoDRS var drs)
-with 
-  | t::q -> t
-  | t::[] -> t
-  | [] -> Rien ;;
-
+(*
 let rec checkIfPredicateSingularOrPlural drs = function
   | PredicateTransitive  (  ref ,  verb,   subject, cod, gramnbr)       -> checkIfPredicateSingularOrPlural drs (getItemByVarIntoDRS subject drs)
   | PredicateDiTransitive(  ref ,  verb,   subject, cod, coi, gramnbr)  -> checkIfPredicateSingularOrPlural drs (getItemByVarIntoDRS subject drs)
@@ -64,8 +44,8 @@ let rec checkIfPredicateSingularOrPlural drs = function
       | _ -> Plural)
   | _ -> Singular ;;
 
-#trace getItemByVarIntoDRS;;
-#trace getItemsByVarIntoDRS;;
+(*#trace getItemByVarIntoDRS;;
+#trace getItemsByVarIntoDRS;;*)
 
 let rec paraphraser = function
   | FullDRS( varlist, Operator2(Imply, drs1 ,drs2)::drsqueue ) as drs -> 
@@ -148,18 +128,53 @@ paraphraser_atom l  false (PredicateDiTransitive (Var "D", Verbe "give", Var "A"
 
 
 
+*)
+
+let objet_en_tant_que_sujet (Object(  ref, Nom name,  countable,  unittype,  op, Number count,x,y) ) =
+        match countable, unittype, op with
+        | Countable, Na        , o    ->  ( match o with 
+                                             | Eq  -> let txt = (string_of_int count)^" "^name in if count < 2 then txt^" " else txt^"s "
+                                             | Geq -> "At least "^(string_of_int count)^" "^name^" "
+                                             | Greater -> "More than "^(string_of_int count)^" "^name^" "
+                                             | Leq     -> "Less or equal than "^(string_of_int count)^" "^name^" "
+                                             | Less    -> "Less than "^(string_of_int count)^" "^name^" "
+                                             | Exactly -> "Exactly "^(string_of_int count)^" "^name^" "
+                                             | NaOp    -> " "^name^" "
+                                        )
+        | Dom      , Na       , NaOp  -> name^" "
+        | Mass     , Kg       , o     -> ( match o with 
+                                             | Eq  -> (string_of_int count)^" kg "
+                                             | Geq -> "At least "^(string_of_int count)^" kg "
+                                             | Greater -> "More than "^(string_of_int count)^" kg "
+                                             | Leq     -> "Less or equal than "^(string_of_int count)^" kg "
+                                             | Less    -> "Less than "^(string_of_int count)^" kg "
+                                             | Exactly -> "Exactly "^(string_of_int count)^" kg "
+                                             | NaOp    -> failwith "illogique Na avec une masse"
+                                        )
+        | _ , _ , _ -> failwith "Cas objet non traité";;
 
 
 
 
+let paraphrase_phrase_simple lst = 
+        let verbe = trouve_verbe lst in
+        match verbe with
+        | PredicateIntransitive ( ref , Verbe verb, SubAtom subject, gramnbr    )               ->  (objet_en_tant_que_sujet subject)^(verb2str verb gramnbr)
+                                                                                               
+        | PredicateTransitive   ( ref , Verbe verb, SubAtom subject, SubAtom cod, gramnbr )      ->  (objet_en_tant_que_sujet subject)^(verb2str verb gramnbr)^(objet_en_tant_que_sujet cod)
 
-let aiguillage_phrase l = match exists_Object l, exists_Predicate l, exists_Modifier_pp l with
-                                | true, true, false   -> "Phrase simple"
-                                | true, true, true    -> "Phrase avec modifiers_pp"
-                                | true, false, false  -> "Phrase nominale"
-                                | false, true, false  -> "Phrase intransitive (genre 'Ll pleut')"
-                                | false, true, true   -> "Cas illogique"
-                                | _ , false, _     -> "Cas non géré pour le moment, ou illogique";;
+                                                                                               
+        | PredicateDiTransitive ( ref , Verbe verb, SubAtom subject, SubAtom cod, SubAtom coi, gramnbr )  ->  
+                        (objet_en_tant_que_sujet subject)^(verb2str verb gramnbr)^(objet_en_tant_que_sujet cod)^"to "^(objet_en_tant_que_sujet coi)
+        | _ -> failwith "cas paraphrase non traité";;
+                                                                                               
+let aiguillage_phrase l = match  exists_Predicate l, exists_Modifier_pp l, exists_Relation l with
+                                |  true, false,false   -> "Phrase simple"
+                                |  true, true,false    -> "Phrase avec modifiers_pp"
+                                |  false, false,false  -> "Phrase nominale"
+                                |  true, false,false   -> "Phrase intransitive (genre 'Il pleut')"
+                                |  true, true, true    -> "Phrase simple avec modifiers_pp et relation (of)"
+                                |  false, _ ,_         -> "Cas non géré pour le moment, ou illogique";;
                 
 
 

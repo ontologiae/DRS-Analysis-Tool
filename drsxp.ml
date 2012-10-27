@@ -26,6 +26,9 @@ let testif =
 let testif2=
 "drs([], [=&gt;( drs([A, B], [property(A, happy, pos)-1/4, predicate(B, be, named('Droopy'), A)-1/3]), drs([C], [predicate(C, laugh, named('Watchers'))-1/7]) )])."
 
+
+let ballons = "drs([A, B, C, D], [object(A, guy, countable, na, eq, 2)-1/2,object(B, balloon, countable, na, eq, 2)-1/5, object(C, girl, countable, na, eq,2)-1/8, predicate(D, give, A, B, C)-1/3]).";;
+
 let long = "drs([A, B, C, D, E, F, G, H, I, J], [object(A, webpage, countable, na, eq, 1)-1/8, predicate(B, be, named('MywebPage'), A)-1/4, object(C, ajaxButton, countable, na, eq, 2)-2/8, predicate(D, contain, named('MywebPage'), C)-2/4, relation(E, of, G)-3/6, object(E, name, countable, na, eq, 1)-3/8, predicate(F, be, E, string('Bouton1'))-3/9, property(G, first, pos)-3/2, object(G, ajaxButton, countable, na, eq, 1)-3/5, relation(H, of, J)-4/6, object(H, name, countable, na, eq, 1)-4/8, predicate(I, be, H, string('Bouton2'))-4/9, property(J, second, pos)-4/2, object(J, ajaxButon, countable, na, eq, 1)-4/5]).";;
 
 let erreurexpl = 
