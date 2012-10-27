@@ -256,13 +256,14 @@ and  extractString =  function
 
 
 
-let exists_Object      l = List.exists (fun e -> match e with | Object(_, _, _,_,_,_,_,_) -> true | _ -> false ) l;;
-let exists_Predicate   l = List.exists (fun e -> match e with 
+let is_Predicate       e = match e with 
                                                 | PredicateIntransitive (_, _, _,_)     -> true
                                                 | PredicateTransitive   (_, _, _,_,_)   -> true
                                                 | PredicateDiTransitive (_, _, _,_,_,_) -> true
-                                                | _                                     -> false ) 
-                                        l;;
+                                                | _                                     -> false;;
+
+let exists_Object      l = List.exists (fun e -> match e with | Object(_, _, _,_,_,_,_,_) -> true | _ -> false ) l;;
+let exists_Predicate   l = List.exists is_Predicate l;;(* Logique à généraliser TODO*)
 let exists_Modifier_pp  l = List.exists (fun e -> match e with | Modifier_pp(_, _, _) -> true | _ -> false ) l;;
 let exists_Modifier_Adv l = List.exists (fun e -> match e with | Modifier_Adv(_, _, _) -> true | _ -> false ) l;;
 let exists_Relation     l = List.exists (fun e -> match e with | Relation(_, _) -> true | _ -> false ) l;;

@@ -163,8 +163,7 @@ let objet_en_tant_que_sujet obj =
 
 
 
-let paraphrase_phrase_simple lst = 
-        let verbe = trouve_verbe lst in
+let paraphrase_from_verb verbe = 
         match verbe with
         | PredicateIntransitive ( ref , Verbe verb, SubAtom subject, gramnbr    )               ->  (objet_en_tant_que_sujet subject)^(verb2str verb gramnbr)
 
@@ -174,6 +173,10 @@ let paraphrase_phrase_simple lst =
         | PredicateDiTransitive ( ref , Verbe verb, SubAtom subject, SubAtom cod, SubAtom coi, gramnbr )  ->  
                         (objet_en_tant_que_sujet subject)^(verb2str verb gramnbr)^(objet_en_tant_que_sujet cod)^"to "^(objet_en_tant_que_sujet coi)
         | _ -> failwith "cas paraphrase non traité";;
+
+let paraphrase_from_list lst = 
+        let verbes = List.filter is_Predicate  lst in
+        List.map paraphrase_from_verb verbes;;
 
 let aiguillage_phrase l = match  exists_Predicate l, exists_Modifier_pp l, exists_Relation l with
 |  true, false,false   -> "Phrase simple"
