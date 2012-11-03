@@ -370,35 +370,6 @@ let getItemsByVarWithoutModifier dico var drs =
 
 
 
-let rec getItemsByVar var = function
-  | Object(  ref,  name,  countable,  unittype,  op, count,x,y)         as self -> if ref = var then [self] else []
-  | PredicateTransitive( ref, verb,   subject , cod, gramnbr )          as self -> if ref = var then [self] else []
-  | PredicateDiTransitive(  ref ,verb,  subject ,  cod,  coi, gramnbr)  as self -> if ref = var then [self] else []
-  | PredicateIntransitive(  ref , verb, subject, gramnbr)               as self -> if ref = var then [self] else []
-  | Property1Ary (ref,  adjective, degree)                              as self -> if ref = var then [self] else []
-  | Property2Ary (ref,  adjective,  degree, ref2)                       as self -> if ref = var then [self] else [] 
-  | Property3Ary (ref,  adjective,  ref2,  degree,  comptarget, ref3)   as self -> if ref = var then [self] else [] 
-  | Relation( ref1,  ref2)                                              as self -> [] 
-  | Modifier_Adv(  ref, adverb,  degree)                                as self -> if ref = var then [self] else []
-  | Modifier_pp ( ref1,  preposition, ref2)                             as self -> if ref1 = var then  [self] else []
-  | HasPart( groupref, memberref)                                               -> [] 
-  | Query( ref,  questionWord)                                          as self -> if ref = var then [self] else []
-  | Operator2 (op, b, c)                                                        ->  (getItemsByVarIntoDRS var b)::(getItemsByVarIntoDRS var c)::[]
-  | Operator1 (op, b)                                                           -> [(getItemsByVarIntoDRS var b)]
-  | String a                                                                    -> [] 
-  | Named  a                                                                    -> [] 
-  | PartOf(a,b)                                                                 -> [] 
-  | Rien                                                                        -> []
-and getItemsByVarIntoDRS var drs = match drs with
-  | FullDRS (a,b) -> List.find (fun a -> if a = Rien then false else true) (List.flatten (List.map (getItemsByVar var) b)) 
-(*and getItemByVarIntoDRS var drs = match (getItemsByVarIntoDRS var drs) with 
-  | t::q  -> t
-  | t::[] -> t
-  | []    -> Rien*)
-and findItemInList lst var = try List.find (fun e -> List.length (getItemsByVar var e) > 0) lst with e -> let r = Printexc.to_string e in print_endline r;Rien
-and findItemsInList lst var = try List.filter (fun e -> List.length (getItemsByVar var e) > 0) lst with e -> let r = Printexc.to_string e in print_endline r;[];;
-
-(*let rec substract l1 l2 = List.filter (fun elem -> not (List.mem elem l2) ) l1;;*)
 
 let rec substract l1 l2 =
 match l1,l2 with
@@ -528,97 +499,7 @@ let treefyElement drs elem =
                  | _ as el -> el;;
      
 
-let rec remplace_in_list drs (lstinit,res) =
-        match lstinit with
-        | []  -> res
-        | lst -> try let noeud = trouve_element_noeud lst in
-                 (match noeud with
-                 | PredicateIntransitive ( ref , verb, subject, gramnbr    )   as verbe      -> 
-                                                                                                let subj = toSubAtom drs subject in
-                                                                                                let re   = PredicateIntransitive ( ref , verb, subj, gramnbr) in
-                                                                                                print_endline (stringOfVar ref);
-                                                                                                remplace_in_list drs ((substract lst [getAtomOfSubAtom subj;verbe]),(re::res))
-                 | PredicateTransitive   ( ref , verb, subject, cod, gramnbr ) as verbe  -> 
-                                                                                                let subj = toSubAtom drs subject in
-                                                                                                let coD  = toSubAtom drs cod in
-                                                                                                let re   = PredicateTransitive(ref , verb, subj, coD, gramnbr) in
-                                                                                                print_endline (stringOfVar ref);
-                                                                                                remplace_in_list drs ((substract lst [getAtomOfSubAtom subj;verbe;getAtomOfSubAtom coD] ), (re::res))
-
-                 | PredicateDiTransitive ( ref ,verb, subject, cod, coi, gramnbr ) as verbe ->  
-                                                                                                let subj = toSubAtom drs subject in
-                                                                                                let coD  = toSubAtom drs cod in
-                                                                                                let coI  = toSubAtom drs coi in
-                                                                                                print_endline (stringOfVar ref);
-                                                                                                let re   = PredicateDiTransitive(ref , verb,  subj, coD, coI, gramnbr) in
-                                                                                                remplace_in_list drs ((substract lst [getAtomOfSubAtom subj;verbe;getAtomOfSubAtom coD;getAtomOfSubAtom coI]) ,(re::res))
-
-                | Modifier_pp(  ref1,  preposition, ref2)  as modifier_pp                    -> let cible = toSubAtom drs ref2 in
-                                                                                                let re    = Modifier_pp(ref1, preposition, cible) in
-                                                                                                print_endline (stringOfVar ref1);
-                                                                                                remplace_in_list drs ((substract lst [getAtomOfSubAtom cible;modifier_pp]) , (re::res))
-
-                | Property2Ary(ref,  adjective,  degree, ref2)  as prop2                     -> let cible = toSubAtom drs ref2 in
-                                                                                                let re    =  Property2Ary(ref,  adjective,  degree, cible) in
-                                                                                                print_endline (stringOfVar ref);
-                                                                                                remplace_in_list drs ((substract lst [getAtomOfSubAtom cible;prop2]),(re::res))
-
-                                                                                                
-                | Property3Ary(ref,  adjective,  ref2,  degree,  comptarget, ref3) as prop3  -> let cible  = toSubAtom drs ref2 in
-                                                                                                let cible2 = toSubAtom drs ref3 in
-                                                                                                let re    =  Property3Ary(ref,  adjective, cible, degree, comptarget, cible2) in
-                                                                                                print_endline (stringOfVar ref);
-                                                                                                remplace_in_list drs ((substract lst [getAtomOfSubAtom cible;prop3]),(re::res))
-
-                | HasPart     (groupref, memberref)  as haspart                              -> let source = toSubAtom drs groupref  in
-                                                                                                let cible  = toSubAtom drs memberref in
-                                                                                                let re     =  HasPart     (source, cible) in
-                                                                                                print_endline ((stringOfVar groupref)^";"^(stringOfVar memberref));
-                                                                                                remplace_in_list drs ((substract lst [getAtomOfSubAtom source;getAtomOfSubAtom cible;haspart]), (re::res))
-
-                | PartOf(groupref,memberref)               as partof                         -> let source = toSubAtom drs groupref  in
-                                                                                                let cible  = toSubAtom drs memberref in
-                                                                                                let re     =  PartOf     (source, cible) in
-                                                                                                print_endline ((stringOfVar groupref)^";"^(stringOfVar memberref));
-                                                                                                remplace_in_list drs ((substract lst [getAtomOfSubAtom source;getAtomOfSubAtom cible;partof]), (re::res))
-
-                | Relation(groupref,memberref)               as relation                     -> let source = toSubAtom drs groupref  in
-                                                                                                let cible  = toSubAtom drs memberref in
-                                                                                                let re     =  Relation     (source, cible) in
-                                                                                                print_endline ((stringOfVar groupref)^";"^(stringOfVar memberref));
-                                                                                                remplace_in_list drs  ((substract lst [getAtomOfSubAtom source;getAtomOfSubAtom cible;relation]), (re::res))
-
-
-                                                                                                
-                (* étendre trouve_verbe vers étendre "centre" qui matchera des Modifier_pp et Modifier_Adv. Le but en fait est de virer les objets libres.
-                 * L'idée générale est de virer les éléments "feuilles". Object est un élément feuille, car n'est pas lié à d'autres variable
-                 * Les feuilles :
-                         * Object
-                         * Named
-                         * String
-                        // * Query   NONNN !!!
-                        // * Modifier_Adv
-                         * ---> Donc trouve_verbe, deviens trouve_element_noeud soit :
-                                 * PredicateDiTransitive
-                                 * PredicateTransitive
-                                 * PredicateIntransitive
-                                 * Modifier_pp
-                                 * Property2Ary
-                                 * Property3Ary
-                                 * Relation
-                                 * HasPart
-                                 * PartOf*)
-                 | _ -> print_endline ("Cas non trouvé !!!"); res@lst)
-        with e -> let e = Printexc.to_string e in
-                          print_endline ("Rien trouvé !! \n"^e); res@lstinit
-;;
-
-
-
-                
-
-
-
+     
 
 
 let g = FullDRS ([Var "J1"; Var "K1"; Var "L1"],                                                                                              
