@@ -544,8 +544,7 @@ let getDRSCondition g  = match g with | FullDRS(a,b) -> a,b;;
  
 let treefy_drs  drs =
         let variables,conditions = getDRSCondition drs in
-        let prefinal             = remplace_in_list drs (conditions,[]) in
-        let final                = List.filter (fun e -> not (is_Object e)) prefinal in
+        let final                = List.filter (fun e -> not (is_Object e)) conditions in
         variables,conditions, (FullDRS(variables,final));;
 (* Le problème c'est que les Property1Ary sont "trouvé" avant les objets*)
 (*On prend les conditions du DRS, on lui donne la phrase*)
