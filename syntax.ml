@@ -370,6 +370,35 @@ let getItemsByVarWithoutModifier dico var drs =
 
 
 
+let rec getItemsByVar var = function
+  | Object(  ref,  name,  countable,  unittype,  op, count,x,y)         as self -> if ref = var then [self] else []
+  | PredicateTransitive( ref, verb,   subject , cod, gramnbr )          as self -> if ref = var then [self] else []
+  | PredicateDiTransitive(  ref ,verb,  subject ,  cod,  coi, gramnbr)  as self -> if ref = var then [self] else []
+  | PredicateIntransitive(  ref , verb, subject, gramnbr)               as self -> if ref = var then [self] else []
+  | Property1Ary (ref,  adjective, degree)                              as self -> if ref = var then [self] else []
+  | Property2Ary (ref,  adjective,  degree, ref2)                       as self -> if ref = var then [self] else [] 
+  | Property3Ary (ref,  adjective,  ref2,  degree,  comptarget, ref3)   as self -> if ref = var then [self] else [] 
+  | Relation( ref1,  ref2)                                              as self -> [] 
+  | Modifier_Adv(  ref, adverb,  degree)                                as self -> if ref = var then [self] else []
+  | Modifier_pp ( ref1,  preposition, ref2)                             as self -> if ref1 = var then  [self] else []
+  | HasPart( groupref, memberref)                                               -> [] 
+  | Query( ref,  questionWord)                                          as self -> if ref = var then [self] else []
+  | Operator2 (op, b, c)                                                        ->  (getItemsByVarIntoDRS var b)::(getItemsByVarIntoDRS var c)::[]
+  | Operator1 (op, b)                                                           -> [(getItemsByVarIntoDRS var b)]
+  | String a                                                                    -> [] 
+  | Named  a                                                                    -> [] 
+  | PartOf(a,b)                                                                 -> [] 
+  | Rien                                                                        -> []
+and getItemsByVarIntoDRS var drs = match drs with
+  | FullDRS (a,b) -> List.find (fun a -> if a = Rien then false else true) (List.flatten (List.map (getItemsByVar var) b)) 
+(*and getItemByVarIntoDRS var drs = match (getItemsByVarIntoDRS var drs) with 
+  | t::q  -> t
+  | t::[] -> t
+  | []    -> Rien*)
+and findItemInList lst var = try List.find (fun e -> List.length (getItemsByVar var e) > 0) lst with e -> let r = Printexc.to_string e in print_endline r;Rien
+and findItemsInList lst var = try List.filter (fun e -> List.length (getItemsByVar var e) > 0) lst with e -> let r = Printexc.to_string e in print_endline r;[];;
+
+(*let rec substract l1 l2 = List.filter (fun elem -> not (List.mem elem l2) ) l1;;*)
 
 let rec substract l1 l2 =
 match l1,l2 with
