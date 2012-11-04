@@ -267,7 +267,7 @@ let is_Predicate          e = match e with
 let is_Modifier_pp        e = match e with | Modifier_pp(_, _, _) -> true | _ -> false;;
 
 
-let is_Operator           e = match e with | Operator2(_,_,_) -> true     | _ -> false;;
+let is_Operator           e = match e with | Operator2(_,_,_) -> true  | Operator1(_,_) -> true   | _ -> false;;
 
 
 let is_Relation           e = match e with | Relation(_, _)                        -> true | _ -> false ;;
@@ -549,4 +549,4 @@ let treefy_drs  drs =
 (* Le problème c'est que les Property1Ary sont "trouvé" avant les objets*)
 (*On prend les conditions du DRS, on lui donne la phrase*)
 
-
+        
