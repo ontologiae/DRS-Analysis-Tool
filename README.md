@@ -1,5 +1,5 @@
 DRS Analysis Tool (DAT) parses and analyses DRS output from Attempto Controlled English (ACE) parser (APE).
-You an use it to make a tool which works with natural english sentences to generate, for instance, SQL queries, datas, etc...
+You an use it to make a tool which works with inputs english sentences to generate, for instance, SQL queries, datas, etc...
 
 DAT parses the DRS into an Ocaml's type, which you can play with.
 
