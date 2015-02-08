@@ -39,7 +39,8 @@ let verb2str verb sing =
         | "be", Partitive  -> "are "
         | "have", Singular -> "has"
         |  a, Singular     -> a^"s "
-        |  a, Plural       ->  a^" " ;;
+        |  a, Plural       ->  a^" " 
+        |  a, Partitive    -> a^" ";;
 
 
 
@@ -88,6 +89,7 @@ let matchsub e =
                 | Var x           -> find_obj x |> objet_en_tant_que_sujet
                 | List l          -> "["^(String.concat "," l)^"]" 
                 | Num  nbr        -> if nbr = 1 then "one" else string_of_int nbr
+                | ConstStr s      -> s
                 
         
 
@@ -95,7 +97,8 @@ let rec paraphrase_relation   lst_relat =
         let phrase_relat = 
                 let relat = List.find is_Relation lst_relat in
                 match relat with
-                | Relation(elemSrc, elemDest) -> (matchsub elemSrc)^" of "^(matchsub elemDest)^" " in
+                | Relation(elemSrc, elemDest) -> (matchsub elemSrc)^" of "^(matchsub elemDest)^" "
+                | _                           -> failwith "Not a relation" in
         try
                 let verbe = List.find is_Predicate lst_relat in
                 let verbe_relat v = 
@@ -146,19 +149,26 @@ and paraphrase_if_then cond1 cond2 =
 and aiguillage_phrase drs lst  = 
         let _,l = Syntax.getDRSCondition drs in
         let _   = Syntax.makeHash hashPredicat drs in
-        match  exists_Operator l, exists_Predicate l, exists_Modifier_pp l, exists_Relation l with
-        |  false, true, false,false   -> let verbes = List.filter is_Predicate  l in (List.map paraphrase_from_verb verbes)@lst
-        |  false, true, true,false    -> let verbes = List.filter is_Predicate  l in
-                          let genere verbeUniq variableVerbe = 
+        let gereOP operator = match operator with
+                | Operator2(Imply, drs1, drs2) -> paraphrase_if_then drs1 drs2
+                                        | Operator2(Not,   drs1, drs2) -> "Operator2 Not Pas géré"
+                                        | Operator2(Union, drs1, drs2) -> "Operator2 union non géré"
+                                        | Operator1(Not,   drs       ) -> " Pas géré: Operator1"
+                                        | _ -> failwith "aiguillage_phrase : Pas opérateur géré" in
+        let genere verbeUniq variableVerbe = 
                                   let phrasebase = paraphrase_from_verb verbeUniq in
                                   let modifiers  = List.filter is_Modifier_pp [stringOfVar variableVerbe |> find_obj] in
                                   phrasebase^" "^(String.concat " " (List.map paraphrase_modifiers modifiers))  in
-                          let mkPhrase verb = match verb with
+        let mkPhrase verb = (match verb with
                           | PredicateIntransitive ( ref , verbe_,  subject, gramnbr    )  -> genere verb ref
                           | PredicateTransitive  ( ref , verbe_,  subject,  cod, gramnbr )  -> genere verb ref
                           | PredicateDiTransitive ( ref , verb_, SubAtom subject, SubAtom cod, SubAtom coi, gramnbr )  ->  genere verb ref
-                          | _  -> failwith "aiguillage_phrase : Aiguillage : non verbe"
-                          in (List.map mkPhrase verbes)@lst
+                          | _  -> failwith "aiguillage_phrase : Aiguillage : non verbe")
+                in
+        match  exists_Operator l, exists_Predicate l, exists_Modifier_pp l, exists_Relation l with
+        |  false, true, false,false   -> let verbes = List.filter is_Predicate  l in (List.map paraphrase_from_verb verbes)@lst
+        |  false, true, true,false    -> let verbes = List.filter is_Predicate  l in
+                                        (List.map mkPhrase verbes)@lst
 
                                 (*["Phrase avec modifiers_pp"] *)
                                 (**TODO Recoller avec les variables, où on cherche les modifier_pp qui ont la même variable que le predicate*)
@@ -168,37 +178,14 @@ and aiguillage_phrase drs lst  =
         |  false, true, false, true   -> [paraphrase_relation l]
         |  true , _, false, _  -> 
                 let operators = List.filter is_Operator l in
-                let gereOP operator = match operator with
-                | Operator2(Imply, drs1, drs2) -> paraphrase_if_then drs1 drs2
-                                        | Operator2(Not,   drs1, drs2) -> "Operator2 Not Pas géré"
-                                        | Operator2(Union, drs1, drs2) -> "Operator2 union non géré"
-                                        | Operator1(Not,   drs       ) -> " Pas géré: Operator1"
-                                        | _ -> failwith "aiguillage_phrase : Pas opérateur géré" in
-                 (List.map gereOP operators)@lst
-(*TODO : faire une Hash de tous les prédicats, avec leur nom de variable*)
+                (List.map gereOP operators)@lst
+                (*TODO : faire une Hash de tous les prédicats, avec leur nom de variable*)
         | true, true, true, true ->
                 let verbes = List.filter is_Predicate  l in 
                 let operators = List.filter is_Operator l in
-                let gereOP operator = (match operator with
-                          | Operator2(Imply, drs1, drs2) -> paraphrase_if_then drs1 drs2
-                          | Operator2(Not,   drs1, drs2) -> "Operator2 Not Pas géré"
-                          | Operator2(Union, drs1, drs2) -> "Operator2 union non géré"
-                          | Operator1(Not,   drs       ) -> " Pas géré: Operator1" 
-                          | _ -> failwith "aiguillage_phrase : Pas opérateur géré") in
-                let genere verbeUniq variableVerbe = 
-                                  let phrasebase = paraphrase_from_verb verbeUniq in
-                                  let modifiers  = List.filter is_Modifier_pp  [stringOfVar variableVerbe |> find_obj] in
-                                  phrasebase^" "^(String.concat " " (List.map paraphrase_modifiers modifiers)) 
-                in
-                let mkPhrase verb = (match verb with
-                          | PredicateIntransitive ( ref , verbe_,  subject, gramnbr    )  -> genere verb ref
-                          | PredicateTransitive  ( ref , verbe_,  subject,  cod, gramnbr )  -> genere verb ref
-                          | PredicateDiTransitive ( ref , verb_, SubAtom subject, SubAtom cod, SubAtom coi, gramnbr )  ->  genere verb ref
-                          | _  -> failwith "aiguillage_phrase : Aiguillage : non verbe")
-                in
-                 (List.map gereOP operators)@(List.map mkPhrase verbes)@lst
+                (List.map gereOP operators)@(List.map mkPhrase verbes)@lst
         | false, false, false, true   -> [paraphrase_relation l]
-        |  false, false, _ ,_         ->  ["Cas non géré pour le moment : If dans un if"];;
+        | false, false, _ ,_         ->  ["Cas non géré pour le moment : If dans un if"];;
 
 
 let dispatch_sentence drs =
