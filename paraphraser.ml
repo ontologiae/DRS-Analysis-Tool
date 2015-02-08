@@ -38,7 +38,8 @@ let verb2str verb sing =
         | "be", Singular   -> "is "
         | "be", Partitive  -> "are "
         | "have", Singular -> "has"
-        |  a, Singular     -> a^"s "
+        |  a, Singular     -> let laststr s = String.sub s (String.length s - 1) 1 in
+                                if laststr a = "s" then a^" " else a^"s "
         |  a, Plural       ->  a^" " 
         |  a, Partitive    -> a^" ";;
 
@@ -196,14 +197,15 @@ let dispatch_sentence drs =
         let conds   = List.flatten (List.map (fun e -> aiguillage_phrase (FullDRS([],[e])) []) ifthen) in
         simples@conds
 
-let g = FullDRS ([Var "J1"; Var "K1"; Var "L1"],                                                                                              
-[Object (Var "J1", Nom "time", Countable, Na, Greater, Number 2, 13, 8);                                                             
-Object (Var "K1", Nom "day", Countable, Na, Eq, Number 10, 13, 13);
-PredicateTransitive (Var "L1", Verbe "vote", SubAtom (Named "User1"),
-Var "J1", Singular);
-Modifier_pp (Var "L1", Preposition "in", Var "K1");
-Modifier_pp (Var "L1", Preposition "for", SubAtom (Named "User2"))]);;
+let g = FullDRS ([Var "J1"; Var "K1"; Var "L1"],
+[Object (Var "J1", Nom "time", Countable, Na, Greater, Number 2, 13, 8);
+ Object (Var "K1", Nom "day", Countable, Na, Eq, Number 10, 13, 13);
+ PredicateTransitive (Var "L1", Verbe "vote", SubAtom (Named "User1"), Var "J1", Singular);
+ Modifier_pp (Var "L1", Preposition "in", Var "K1");
+ Modifier_pp (Var "L1", Preposition "for", SubAtom (Named "User2"))]);;
 
+
+let paraphrase drs = aiguillage_phrase drs [];;
 (*
 #trace paraphrase_if_then;;
 #trace paraphrase_from_list;;

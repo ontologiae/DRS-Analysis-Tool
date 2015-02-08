@@ -38,8 +38,19 @@ a parsecomplete gives :
 PARAPHRASER
 ===========
 
-There's an experimental paraphraser. It isn't complete but it works with simple cases.
+There's an experimental (and ugly) paraphraser. It works on simple example.
 
+# let g = FullDRS ([Var "J1"; Var "K1"; Var "L1"],
+[Object (Var "J1", Nom "time", Countable, Na, Greater, Number 2, 13, 8);
+ Object (Var "K1", Nom "day", Countable, Na, Eq, Number 10, 13, 13);
+ PredicateTransitive (Var "L1", Verbe "vote", SubAtom (Named "User1"), Var "J1", Singular);
+ Modifier_pp (Var "L1", Preposition "in", Var "K1");
+ Modifier_pp (Var "L1", Preposition "for", SubAtom (Named "User2"))]);;
+
+# paraphrase g;;
+- : bytes list = ["User1 votes More than 2 time  for User2 "]
+
+There's still syntaxes mistakes, but it almost works for a large subset of DRS.
 
 DEPENDANCY
 ==========
@@ -58,3 +69,5 @@ You can play with DAT with the OCaml TopLevel, by typing :
 drsxp.ml contains several test examples.
 It also contains "parse" function, which parses a DRS's string and translate it into the first grammar.
 "parsecomplete" parses the DRS's string and translate it in the DAT's grammar.
+
+With ``make top`` you can play with this lib.
