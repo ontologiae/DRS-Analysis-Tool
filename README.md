@@ -34,6 +34,13 @@ a parsecomplete gives :
 
 
 
+
+PARAPHRASER
+===========
+
+There's an experimental paraphraser. It isn't complete but it works with simple cases.
+
+
 DEPENDANCY
 ==========
 

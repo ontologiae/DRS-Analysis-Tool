@@ -41,7 +41,7 @@ let parse = function str -> cmds (lexer str);;
 
 let parsecomplete str = 
         let drs = Syntax.drs_to_fulldrs ( parse str) in
-        Syntax.treefy_drs drs;;
+        (*Syntax.treefy_drs *)drs;;
 
 
 let gros = 

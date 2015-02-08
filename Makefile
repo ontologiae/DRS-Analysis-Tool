@@ -6,7 +6,7 @@ SOURCES = \
 	parser.mly \
 	paraphraser.ml \
 
-OCAMLBUILD=ocamlbuild 
+OCAMLBUILD=ocamlbuild -classic-display 
 #-use-menhir
 CAML2HTML=caml2html
 OCAMLDOC=ocamldoc
@@ -23,10 +23,10 @@ stop: clean byte
 
 
 byte:
-	$(OCAMLBUILD) $(TARGET).byte
+	$(OCAMLBUILD) -classic-display $(TARGET).byte
 
 native:
-	$(OCAMLBUILD) $(TARGET).native
+	$(OCAMLBUILD) -classic-display $(TARGET).native
 
 web: html
 	echo '<div class="lang">' > web.html

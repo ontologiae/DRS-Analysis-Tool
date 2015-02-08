@@ -24,6 +24,8 @@
 %token SLASH
 %token QUOTE
 %token NAF
+%token DEUXPOINT
+%token LIST
 
 %token MUST
 %token MAY
@@ -63,6 +65,8 @@ argsdomain:
 conditions:
         | GCROCHET conditionlist DCROCHET            { $2 }
         | GCROCHET DCROCHET                          { [] }
+        | literalvar DEUXPOINT drs                   { [SubDrsp($1,$3)]}
+
 
 conditionlist:
         | condition                                  { [$1] }
@@ -71,6 +75,7 @@ conditionlist:
 condition:
         | drsoperateur1 LPAREN drs RPAREN            { Operatorp1($1,$3) }
         | drsoperateur2 LPAREN drs COMMA drs RPAREN  { Operatorp2($1,$3,$5) }
+        | literalvar DEUXPOINT drs                   { SubDrsp($1,$3)}        
         | atom                                       { Atomicp $1 }
 
 drsoperateur1:
@@ -91,7 +96,7 @@ atom:
   | CONST LPAREN args RPAREN                         { Atom ($1,$3,0,0) }
   | CONST LPAREN args RPAREN TIRET NBR SLASH NBR     { Atom ($1, $3,$6,$8) }
   | CONST LPAREN args RPAREN TIRET NBR SLASH STRINGALL { Atom ($1, $3,$6,0) }
-  
+   
 
 
 
@@ -99,12 +104,20 @@ args:
   | literal                                          { [$1] }
   | CONST LPAREN literal RPAREN                      { [TermAtom(Atom($1,[$3],0,0))] }
   | CONST LPAREN literal RPAREN COMMA args           { (TermAtom(Atom($1,[$3],0,0))) :: $6 }
+  | LIST  LPAREN GCROCHET listterm DCROCHET RPAREN COMMA args           { Listt($4)::$8 }
+  | LIST  LPAREN GCROCHET listterm DCROCHET RPAREN   { [Listt($4)] }
   | literal COMMA args                               { $1 :: $3 }
 
 
 
 literalvar:
   | VAR                                              {$1}
+
+
+listterm:
+ | CONST LPAREN STRINGALL RPAREN                    { [$3] }
+ | CONST LPAREN STRINGALL RPAREN COMMA listterm     { $3::$6 }
+
 
 literal:
   | STRINGALL                                        { ConstCh($1) }

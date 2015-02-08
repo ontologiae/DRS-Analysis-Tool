@@ -35,7 +35,8 @@ rule token = parse
   | "CAN"           { CAN }
   | "COMMAND"       { COMMAND }
   | "command"       { COMMAND }
-  | "v"             { UNION } 
+  | "v"             { UNION }
+  | "list"          { LIST } 
   | '\"' [^'\"']* '\"' { let str = lexeme lexbuf in STRING (String.sub str 1 (String.length str - 2)) }
   | '\'' [^'\'']* '\'' { let str = lexeme lexbuf in STRINGALL (String.sub str 1 (String.length str - 2)) }
   | '('             { LPAREN }
@@ -47,7 +48,8 @@ rule token = parse
   | '-'             { TIRET }
   | '/'             { SLASH }
   | '\''            { QUOTE }
-  | '~'             { NAF } 
+  | '~'             { NAF }
+  | ':'             { DEUXPOINT } 
   | nbr             { NBR (int_of_string (lexeme lexbuf))}
   | const           { CONST (lexeme lexbuf) }
   | var             { VAR (lexeme lexbuf) }

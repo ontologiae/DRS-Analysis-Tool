@@ -6,7 +6,7 @@ domainp = varp list
 and 
 conditionsp = conditionDRSp list
 and 
-conditionDRSp = Operatorp2 of operator * drs * drs | Operatorp1 of operator * drs | Atomicp of atomp
+conditionDRSp = Operatorp2 of operator * drs * drs | Operatorp1 of operator * drs | Atomicp of atomp | SubDrsp of name * drs 
 and
  varp = Varp of string
 and name = string
@@ -16,7 +16,7 @@ and operator = Imply | Equal | Different | Inter | Union |  Must | Can | May | N
 
 and atomp = Atom of name * term list * int * int(*Les deux positions*)
 
-and term = Variable of string | Const of name | ConstCh of name | Nbr of int | TermAtom of atomp   ;;
+and term = Variable of string | Const of name | ConstCh of name | Nbr of int | TermAtom of atomp | Listt of string list;;
     
 type toplevel_cmd =
   | Assert of drs
@@ -38,7 +38,7 @@ and conditions = atom list
 and domain = var list
 (*and 
 conditionDRS = Operator2 of operator * fulldrs * fulldrs | Operator1 of operator * fulldrs | Atomic of atom*)
-and var = Var of string | SubAtom of atom | Num of int | ConstStr of name
+and var = Var of string | SubAtom of atom | Num of int | ConstStr of name | List of string list
 (*Liste des primitives du DRS*)
 
 and adjectif = Adj of name
@@ -65,7 +65,8 @@ ObjRef A variable or expression that stands for the direct object.
 IndObjRef A variable or expression that stands for the indirect object. 
 *)
   Operator2 of operator * fulldrs * fulldrs 
-| Operator1 of operator * fulldrs  
+| Operator1 of operator * fulldrs
+| SubDrs    of string   * fulldrs 
 | PredicateIntransitive of var * verbe * var * grammaticalNumber(*Subject*)
 | PredicateTransitive of var * verbe * var * var * grammaticalNumber(*Subject  COD *)
 | PredicateDiTransitive of var * verbe * var * var * var * grammaticalNumber(*Subject COD COI*)
@@ -187,6 +188,7 @@ and  conditionDRS2ConditionFullDRS = function
   | Operatorp1(op,a) -> Operator1 (  op, drs_to_fulldrs a)
   | Operatorp2(op,a,b) -> Operator2 ( op, drs_to_fulldrs a, drs_to_fulldrs b)
   | Atomicp a ->  atom2primitives a
+  | SubDrsp (v,d)  -> SubDrs (v,drs_to_fulldrs d)
 
 (* convert ACE atoms to specific predicate*)                    
 and atom2primitives = function
@@ -246,11 +248,13 @@ and atomNamedString2NamedString = function
   | Nbr a -> Num a
   | ConstCh a -> ConstStr a
   | Const a  -> ConstStr a
+  | Listt sl  -> List sl
 and  extractString =  function
   | ConstCh a ->  a
   | Const a  ->  a
   | Variable a -> a
   | Nbr i      -> string_of_int i
+  | Listt sl  -> String.concat "," sl
   | TermAtom a -> failwith "attendu constante";; 
 
 
