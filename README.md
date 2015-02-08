@@ -47,8 +47,8 @@ There's an experimental (and ugly) paraphraser. It works on simple example.
 	 Modifier_pp (Var "L1", Preposition "in", Var "K1");
 	 Modifier_pp (Var "L1", Preposition "for", SubAtom (Named "User2"))]);;
 
-# paraphrase g;;
-- : bytes list = ["User1 votes More than 2 time  for User2 "]
+	# paraphrase g;;
+	- : bytes list = ["User1 votes More than 2 time  for User2 "]
 
 There's still syntaxes mistakes, but it almost works for a large subset of DRS.
 
