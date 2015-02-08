@@ -40,12 +40,12 @@ PARAPHRASER
 
 There's an experimental (and ugly) paraphraser. It works on simple example.
 
-# let g = FullDRS ([Var "J1"; Var "K1"; Var "L1"],
-[Object (Var "J1", Nom "time", Countable, Na, Greater, Number 2, 13, 8);
- Object (Var "K1", Nom "day", Countable, Na, Eq, Number 10, 13, 13);
- PredicateTransitive (Var "L1", Verbe "vote", SubAtom (Named "User1"), Var "J1", Singular);
- Modifier_pp (Var "L1", Preposition "in", Var "K1");
- Modifier_pp (Var "L1", Preposition "for", SubAtom (Named "User2"))]);;
+	# let g = FullDRS ([Var "J1"; Var "K1"; Var "L1"],
+	[Object (Var "J1", Nom "time", Countable, Na, Greater, Number 2, 13, 8);
+	 Object (Var "K1", Nom "day", Countable, Na, Eq, Number 10, 13, 13);
+	 PredicateTransitive (Var "L1", Verbe "vote", SubAtom (Named "User1"), Var "J1", Singular);
+	 Modifier_pp (Var "L1", Preposition "in", Var "K1");
+	 Modifier_pp (Var "L1", Preposition "for", SubAtom (Named "User2"))]);;
 
 # paraphrase g;;
 - : bytes list = ["User1 votes More than 2 time  for User2 "]
