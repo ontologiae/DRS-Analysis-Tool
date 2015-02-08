@@ -1,28 +1,12 @@
 DRS Analysis Tool (DAT) parses and analyses DRS output from Attempto Controlled English (ACE) parser (APE).
+You an use it to make a tool which works with natural english sentences to generate, for instance, SQL queries, datas, etc...
 
-DAT parses the DRS with a first grammar, made specifically for the parser. It is possible, then, to translate this first grammar to a second (the DAT's grammar), made for analysis purpose.
-See syntax.ml for the two grammars.
+DAT parses the DRS into an Ocaml's type, which you can play with.
 
-For instance the sentence "Droopy is happy." is translate by APE in "drs([A, B], [property(A, happy, pos)-1/3, predicate(B, be, named('Droopy'), A)-1/2])".
+
+For instance the sentence "Droopy is happy." is translated by APE in "drs([A, B], [property(A, happy, pos)-1/3, predicate(B, be, named('Droopy'), A)-1/2])".
 A parse function gives :
 
-   # parse "drs([A, B], [property(A, happy, pos)-1/3, predicate(B, be, named('Droopy'), A)-1/2]).";;
-
-    - : Syntax.drs =
-    Syntax.DRS ([Syntax.Varp "A"; Syntax.Varp "B"],
-    [Syntax.Atomicp
-      (Syntax.Atom ("property",
-        [Syntax.Variable "A"; Syntax.Const "happy"; Syntax.Const "pos"], 1, 3));
-     Syntax.Atomicp
-      (Syntax.Atom ("predicate",
-        [Syntax.Variable "B"; Syntax.Const "be";
-         Syntax.TermAtom
-          (Syntax.Atom ("named", [Syntax.ConstCh "Droopy"], 0, 0));
-         Syntax.Variable "A"],
-        1, 2))])
-
-
-a parsecomplete gives :
 
     # parsecomplete "drs([A, B], [property(A, happy, pos)-1/3, predicate(B, be, named('Droopy'), A)-1/2]).";;
 
@@ -38,7 +22,7 @@ a parsecomplete gives :
 PARAPHRASER
 ===========
 
-There's an experimental (and ugly) paraphraser. It works on simple example.
+There's an experimental (and ugly) paraphraser. It works on simples examples.
 
 	# let g = FullDRS ([Var "J1"; Var "K1"; Var "L1"],
 	[Object (Var "J1", Nom "time", Countable, Na, Greater, Number 2, 13, 8);
