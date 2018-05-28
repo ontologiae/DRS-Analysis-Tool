@@ -83,6 +83,7 @@ drsoperateur1:
         | MUST                                       { Must }
         | MAY                                        { May  }
         | TIRET                                      { Not  }
+        | COMMAND                                    { Command }
         | NAF                                        { Naf  }
 
 drsoperateur2:

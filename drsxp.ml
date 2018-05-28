@@ -7,7 +7,7 @@ drs([A, B], [object(A, webpage, countable, na, eq, 1)-1/8, predicate(B, be, name
 let lexer = function str ->  Message.lexer_from_string str;;
 let fatal_error msg = raise (Fatal_error msg);;
 
-	let cmds lex =
+let cmds lex =
 	  try
 	    Parser.drstart Lexer.token lex
 	  with

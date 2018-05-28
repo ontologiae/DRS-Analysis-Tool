@@ -1,3 +1,7 @@
+open Batteries
+module L = BatList;;
+module H = BatHashtbl;;
+
 (* This first grammar is just made for the parser *)    
 type
  drs = DRS of domainp * conditionsp
@@ -109,7 +113,90 @@ CompTarget This is one of {subj,obj} and it deﬁnes for transitive adjectives w
 | String of  name
 
 | Query of var * pronom_interrogatif
+| VarElem of var (*Pour les cas où on a des nums ou des trucs du genre dans la fonction treefyElem*)
+
 | Rien ;;
+
+
+
+
+type drsTree = FullDRSTree of  atomTree list
+(*and 
+conditionDRS = Operator2 of operator * fulldrs * fulldrs | Operator1 of operator * fulldrs | Atomic of atom*)
+and varTree = Vart of string | SubAtomt of atomTree | Numt of int | ConstStrt of name | Listt of string list
+(*Liste des primitives du DRS*)
+(*
+and adjectif = Adj of name
+and adverbe = Adv of name
+and preposition = Preposition of name
+and verbe = Verbe of name
+and noun = Nom of name
+
+and pronom_interrogatif = Who | What | Which | How | Where | When
+and classtype = Dom | Mass | Countable
+and unittype = Kg | Na | Meter
+and op = Eq | Geq | Greater | Leq | Less | Exactly | NaOp (*Eq stands for “equal”, Geq for “greater or equal”, and Leq for “less or equal”. *)
+and degre = Pos | Pos_as | Comp | Comp_than | Sup
+and compTarget = Subj | Obj
+and countable = NotCountable | Number of int
+and grammaticalNumber = Plural | Singular | Partitive
+*)
+and atomTree = 
+(* Ref A variable that stands for this relation and that is used to attach modiﬁers (i.e. adverbs and 
+prepositional phrases). 
+Verb The intransitive, transitive, or ditransitive verb. 
+SubjRef A variable or expression that stands for the subject. 
+ObjRef A variable or expression that stands for the direct object. 
+IndObjRef A variable or expression that stands for the indirect object. 
+*)
+  Operator2T of operator * drsTree * drsTree
+| Operator1T  of operator * drsTree
+| SubDrsT     of string   * drsTree
+| PredicateIntransitiveT  of var * atomTree * verbe  * grammaticalNumber(*Subject*)
+| PredicateTransitiveT  of var * atomTree * verbe * atomTree  * grammaticalNumber(*Subject  COD *)
+| PredicateDiTransitiveT  of var * atomTree * verbe * atomTree * atomTree * grammaticalNumber(*Subject COD COI*)
+
+(* Ref The variable that stands for this object and that is used for references. 
+Noun The noun (mass or countable) that was used to introduce the object. 
+Class This is one of  {dom,mass,countable} and deﬁnes the classiﬁcation of the object. mass and countable inherit from dom
+Unit If the object was introduced together with a measurement noun (e.g. “2 kg of apples”) then this entry contains the value of the measurement noun (e.g. kg). Otherwise, this entry is na. 
+Op One of {eq,geq,greater,leq,less,exactly,na}. eq stands for “equal”, geq for “greater or  equal”, and leq for “less or equal”. 
+Count A positive number or na. Together with Unit and Op, this deﬁnes the cardinality or extent of the object. 
+ *)
+| ObjectT  of var * noun * classtype * unittype * op * countable (*Ref,Noun,Class,Unit,Op,Count*) * int * int (*Pour le repère de pos*)
+
+
+(*
+Ref1 The variable or expression that stands for the primary object of the property (i.e. the subject). 
+Ref2 The variable or expression that stands for the secondary object of the property. 
+Ref3 The variable or expression that stands for the tertiary object of the property. 
+
+Adjective The intransitive or transitive adjective. 
+        
+Degree This is one of {pos,pos as,comp,comp than,sup} and it deﬁnes the degree of the adjective. Positive and comparative forms can have an additional comparison target (“as rich as ...”, “richer than ...”), and for those cases pos as and comp than are used. 
+
+CompTarget This is one of {subj,obj} and it deﬁnes for transitive adjectives whether the comparison targets the subject 
+ (“John is more fond-of Mary than Bill”) or the object (“John is more fond-of Mary than of Sue”).*)
+| Property1AryT  of var * adjectif * degre 
+| Property2AryT  of var * adjectif * degre * atomTree
+| Property3AryT  of var * adjectif * atomTree * degre * compTarget * atomTree
+
+
+| RelationT  of atomTree  * atomTree 
+(* Modifiers *)
+| Modifier_AdvT  of atomTree * adverbe * degre 
+| Modifier_ppT  of atomTree * preposition * atomTree 
+
+| HasPartT  of atomTree * atomTree
+| PartOfT  of atomTree * atomTree
+| NamedT  of  name (**)
+| StringT  of  name
+| VarElemt of varTree
+| QueryT  of atomTree * pronom_interrogatif
+| RienT  ;;
+
+
+
 
 
 
@@ -241,7 +328,9 @@ and atom2primitives = function
 
 and atomNamedString2NamedString = function
   | TermAtom(Atom("named",[ConstCh properName ],a,b)) -> SubAtom(Named properName )
+  | TermAtom(Atom("named",[Const properName ],a,b)) -> SubAtom(Named properName )  
   | TermAtom(Atom("string",[ConstCh stringConst ],a,b)) -> SubAtom(String stringConst)
+  | TermAtom(Atom("string",[Const stringConst ],a,b)) -> SubAtom(String stringConst)  
   | TermAtom(Atom("int",[Nbr nb],a,b)) -> Num nb
   | TermAtom( Atom(a, l,x,y)) -> print_endline ("Error with atom :"^(atom2String (Atom(a,l,x,y)))^". Check you're using ACE 6.6"); Num 6
   | Variable a -> Var a
@@ -296,7 +385,8 @@ let exists_Operator     l = List.exists is_Operator l;;
 
 
 let rec maptree f  = function
-                                                | FullDRS (a,b) -> FullDRS(a,List.map (maptreeElem f) b)
+        | FullDRS (a,b) -> FullDRS(a,List.map (maptreeElem f) b)
+
 and maptreeElem f = function
   | Object(  ref,  name,  countable,  unittype,  op, count,x,y)         as self -> f self
   | PredicateTransitive( ref, verb,   subject , cod, gramnbr )          as self -> f self
@@ -324,18 +414,18 @@ let rec makeHash hash =  function
         | FullDRS (a,b) -> List.fold_left makeHashElem hash b
 
 and makeHashElem hash = function
-        | Object(  ref,  name,  countable,  unittype,  op, count,x,y)         as self -> Hashtbl.add hash ref self; hash
-        | PredicateTransitive( ref, verb,   subject , cod, gramnbr )          as self -> Hashtbl.add hash ref self; hash
-        | PredicateDiTransitive(  ref ,verb,  subject ,  cod,  coi, gramnbr)  as self -> Hashtbl.add hash ref self; hash
-        | PredicateIntransitive(  ref , verb, subject, gramnbr)               as self -> Hashtbl.add hash ref self; hash
-        | Property1Ary (ref,  adjective, degree)                              as self -> Hashtbl.add hash ref self; hash
-        | Property2Ary (ref,  adjective,  degree, ref2)                       as self -> Hashtbl.add hash ref self; hash
-        | Property3Ary (ref,  adjective,  ref2,  degree,  comptarget, ref3)   as self -> Hashtbl.add hash ref self; hash
+        | Object(  ref,  name,  countable,  unittype,  op, count,x,y)         as self -> H.add hash ref self; hash
+        | PredicateTransitive( ref, verb,   subject , cod, gramnbr )          as self -> H.add hash ref self; hash
+        | PredicateDiTransitive(  ref ,verb,  subject ,  cod,  coi, gramnbr)  as self -> H.add hash ref self; hash
+        | PredicateIntransitive(  ref , verb, subject, gramnbr)               as self -> H.add hash ref self; hash
+        | Property1Ary (ref,  adjective, degree)                              as self -> H.add hash ref self; hash
+        | Property2Ary (ref,  adjective,  degree, ref2)                       as self -> H.add hash ref self; hash
+        | Property3Ary (ref,  adjective,  ref2,  degree,  comptarget, ref3)   as self -> H.add hash ref self; hash
         | Relation( ref1,  ref2)                                              as self -> hash
-        | Modifier_Adv(  ref, adverb,  degree)                                as self -> Hashtbl.add hash ref self; hash
-        | Modifier_pp ( ref1,  preposition, ref2)                             as self -> Hashtbl.add hash ref1 self; hash
-        | HasPart( groupref, memberref)                                       as self -> Hashtbl.add hash groupref self; hash
-        | Query( ref,  questionWord)                                          as self -> Hashtbl.add hash ref self; hash
+        | Modifier_Adv(  ref, adverb,  degree)                                as self -> hash
+        | Modifier_pp ( ref1,  preposition, ref2)                             as self -> hash
+        | HasPart( groupref, memberref)                                       as self -> hash
+        | Query( ref,  questionWord)                                          as self ->  hash
         | Operator2 (op, b, c)                                                as self -> let h1 = makeHash hash b in makeHash h1 c
         | Operator1 (op, b)                                                   as self -> makeHash hash b
         | String a                                                            as self -> hash 
@@ -343,6 +433,52 @@ and makeHashElem hash = function
         | PartOf(a,b)                                                         as self -> hash
         | Rien                                                                        -> hash
 
+
+let rec treefyElem (hash : (var, atom) H.t ) expre =
+        let convertVar = function
+                | SubAtom atom  -> atom
+                | e             -> VarElem e in 
+        let convertVarElem = function
+                | Num a         -> Numt a
+                | SubAtom a     -> SubAtomt(treefyElem hash a)
+                | ConstStr c    -> ConstStrt c
+                | List l        -> Listt l
+                | Var v         -> Vart v in
+        let hfind elem = try H.find hash elem with Not_found -> convertVar elem in
+        match expre with
+        | Object(  ref,  name,  countable,  unittype,  op, count,x,y)        -> ObjectT (  ref,  name,  countable,  unittype,  op, count,x,y)
+        | VarElem e                                                          -> VarElemt( convertVarElem e)
+        | PredicateTransitive( ref, verb,   subject , cod, gramnbr )         -> let subj  = hfind subject in
+                                                                                let cmpod = hfind cod   in
+                                                                                PredicateTransitiveT (ref, treefyElem hash subj, verb, treefyElem hash cmpod, gramnbr) 
+
+        | PredicateDiTransitive(  ref ,verb,  subject ,  cod,  coi, gramnbr) -> let subj  = hfind subject in
+                                                                                let cmpod = hfind cod   in
+                                                                                let cmpoi = hfind cod   in
+                                                                                PredicateDiTransitiveT (ref, treefyElem hash subj, verb,  treefyElem hash cmpod, treefyElem hash cmpoi, gramnbr)
+
+        | PredicateIntransitive(  ref , verb, subject, gramnbr)              -> let subj  = hfind subject in PredicateIntransitiveT (ref, treefyElem hash subj, verb, gramnbr)
+        | Operator2 (op, FullDRS(_,b), FullDRS(_,c))                         -> Operator2T (op, FullDRSTree(b |> L.map (treefyElem hash)) , FullDRSTree(c |> L.map (treefyElem hash)))
+        | Operator1 (op, FullDRS(_,b))                                       -> Operator1T (op,  FullDRSTree(b |> L.map (treefyElem hash)))
+        | HasPart(a,b)                                                       -> let mero = hfind a in let mero2 = hfind b in HasPartT ( treefyElem hash mero, treefyElem hash mero2)
+        | Relation(a,b)                                                      -> let mero = hfind a in let mero2 = hfind b in RelationT ( treefyElem hash mero, treefyElem hash mero2)      
+        | PartOf(a,b)                                                        -> let mero = hfind a in let mero2 = hfind b in PartOfT ( treefyElem hash mero, treefyElem hash mero2)
+        | String a                                                           -> StringT a 
+        | Named  a                                                           -> NamedT a
+        | Rien                                                               -> RienT 
+        | Modifier_Adv(  ref, adverb,  degree)                               -> let a = hfind ref in Modifier_AdvT(  treefyElem hash a, adverb,  degree)
+        | Modifier_pp ( ref1,  preposition, ref2)                            -> let a = hfind ref1 in let b = hfind ref2 in   Modifier_ppT( treefyElem hash a,  preposition, treefyElem hash b)
+        | Query( ref, pint)                                                  -> let a = hfind ref in QueryT(treefyElem hash a, pint)
+        | Property1Ary (ref,  adjective, degree)                             -> Property1AryT(ref, adjective, degree)
+        | Property2Ary (ref,  adjective,  degree, ref2)                      -> let b = hfind ref2 in
+                                                                                 Property2AryT(ref, adjective, degree, treefyElem hash b)
+        | Property3Ary (ref,  adjective,  ref2,  degree,  comptarget, ref3)  -> let b = hfind ref2 in
+                                                                                let c = hfind ref3 in
+                                                                                Property3AryT(ref, adjective, treefyElem hash b, degree, comptarget, treefyElem hash c)
+
+
+and treefy_drs_pass hash =  function
+        | FullDRS (a,b) -> FullDRSTree( L.map (treefyElem hash) b ) 
 
 
         

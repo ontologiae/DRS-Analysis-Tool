@@ -6,7 +6,7 @@ SOURCES = \
 	parser.mly \
 	paraphraser.ml \
 
-OCAMLBUILD=ocamlbuild -classic-display 
+OCAMLBUILD=ocamlbuild -classic-display -use-ocamlfind
 #-use-menhir
 CAML2HTML=caml2html
 OCAMLDOC=ocamldoc
@@ -15,8 +15,12 @@ default: byte
 
 all: byte native html
 
-top: 
+toppara:
 	utop -I _build/ parser.cmo message.cmo lexer.cmo syntax.cmo drsxp.cmo -init paraphraser.ml
+
+
+top: 
+	utop -I _build/ parser.cmo message.cmo lexer.cmo syntax.cmo drsxp.cmo -init drstop.ml
 
 stop: clean byte
 	utop -I _build/ parser.cmo message.cmo lexer.cmo syntax.cmo drsxp.cmo paraphraser.cmo -init top.ml 
