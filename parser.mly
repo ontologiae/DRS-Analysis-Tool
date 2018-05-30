@@ -30,6 +30,7 @@
 %token MUST
 %token MAY
 %token CAN
+%token QUESTION
 %token IMPLY, UNION, COMMAND
 
 
@@ -71,6 +72,7 @@ conditions:
 conditionlist:
         | condition                                  { [$1] }
         | condition COMMA conditionlist              { $1::$3 }
+        | condition COMMA GCROCHET conditionlist DCROCHET COMMA conditionlist { $1::($4@$7) }
 
 condition:
         | drsoperateur1 LPAREN drs RPAREN            { Operatorp1($1,$3) }
@@ -84,6 +86,7 @@ drsoperateur1:
         | MAY                                        { May  }
         | TIRET                                      { Not  }
         | COMMAND                                    { Command }
+        | QUESTION                                   { Question }
         | NAF                                        { Naf  }
 
 drsoperateur2:

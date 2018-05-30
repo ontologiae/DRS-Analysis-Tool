@@ -30,6 +30,17 @@ let num2str = function
 let hashPredicat : (Syntax.var, Syntax.atom) Hashtbl.t =  Hashtbl.create 1;;
 let pc = parsecomplete;;
 
+let cleanDRS f =
+        let findElem (Var d) el =
+                match el with
+                | Object( Var s, _, _, _, _, _, _, _ )           -> s = d
+                | PredicateIntransitive ( Var s, _, _, _ )       -> s = d
+                | PredicateTransitive   ( Var s, _, _, _, _ )    -> s = d
+                | PredicateDiTransitive ( Var s, _, _, _, _, _ ) -> s = d
+                | _                                               -> false in
+        match f with
+        | FullDRS(domain,l) -> FullDRS ( [] , L.filter (fun o -> not (L.exists (fun b -> findElem b o) domain) ) l )
+
 
 let prop2str (Preposition prep) = prep;;
 
@@ -151,7 +162,7 @@ and paraphrase_if_then cond1 cond2 =
 and aiguillage_phrase drs lst  = 
         let aigs d = aiguillage_phrase d [] in
         let _,l = Syntax.getDRSCondition drs in
-        let _   = Syntax.makeHash hashPredicat drs in
+        let _   = Syntax.makeHashDomain hashPredicat drs in
         let gereOP operator = match operator with
                 | Operator2(Imply, drs1, drs2) -> paraphrase_if_then drs1 drs2
                 | Operator2(Not,   drs1, drs2) -> let d1 = aigs drs1 in let d2 = aigs drs2 in d1@[" NOT "]@d2 |> S.concat " "

@@ -16,7 +16,7 @@ and
 and name = string
 (* By defining Command, Rule, Definition, Fact and Query, we can prebuild a first help
 to a semantic analysis*)
-and operator = Imply | Equal | Different | Inter | Union |  Must | Can | May | Not | Naf  | Rule | Definition | Command | Query | Fact
+and operator = Imply | Equal | Different | Inter | Union |  Must | Can | May | Not | Naf  | Rule | Definition | Command | Query | Fact | Question
 
 and atomp = Atom of name * term list * int * int(*Les deux positions*)
 
@@ -152,9 +152,9 @@ IndObjRef A variable or expression that stands for the indirect object.
   Operator2T of operator * drsTree * drsTree
 | Operator1T  of operator * drsTree
 | SubDrsT     of string   * drsTree
-| PredicateIntransitiveT  of var * atomTree * verbe  * grammaticalNumber(*Subject*)
-| PredicateTransitiveT  of var * atomTree * verbe * atomTree  * grammaticalNumber(*Subject  COD *)
-| PredicateDiTransitiveT  of var * atomTree * verbe * atomTree * atomTree * grammaticalNumber(*Subject COD COI*)
+| PredicateIntransitiveT  of var * atomTree * verbe   * grammaticalNumber(*Subject altérateur*)
+| PredicateTransitiveT  of var * atomTree * verbe   * atomTree  * grammaticalNumber(*Subject altérateur COD *)
+| PredicateDiTransitiveT  of var * atomTree * verbe *  atomTree * atomTree * grammaticalNumber(*Subject altérateur COD COI*)
 
 (* Ref The variable that stands for this object and that is used for references. 
 Noun The noun (mass or countable) that was used to introduce the object. 
@@ -413,7 +413,8 @@ and maptreeElem f = function
 let rec makeHash hash =  function
         | FullDRS (a,b) -> List.fold_left makeHashElem hash b
 
-and makeHashElem hash = function
+and makeHashElem hash = 
+        function
         | Object(  ref,  name,  countable,  unittype,  op, count,x,y)         as self -> H.add hash ref self; hash
         | PredicateTransitive( ref, verb,   subject , cod, gramnbr )          as self -> H.add hash ref self; hash
         | PredicateDiTransitive(  ref ,verb,  subject ,  cod,  coi, gramnbr)  as self -> H.add hash ref self; hash
@@ -432,6 +433,26 @@ and makeHashElem hash = function
         | Named  a                                                            as self -> hash
         | PartOf(a,b)                                                         as self -> hash
         | Rien                                                                        -> hash
+
+
+let rec makeHashDomain hash drs =
+        let domain, lstdrs = match drs with FullDRS( d, l) -> d, l in
+        let inDomain v = L.exists (fun e -> e = v) domain in
+        let rec makeHashElem1 hash elem =
+                match elem with
+                | Object(  ref,  name,  countable,  unittype,  op, count,x,y)         as self -> if inDomain ref then H.add hash ref self; hash
+                | PredicateTransitive( ref, verb,   subject , cod, gramnbr )          as self -> if inDomain ref then H.add hash ref self; hash
+                | PredicateDiTransitive(  ref ,verb,  subject ,  cod,  coi, gramnbr)  as self -> if inDomain ref then H.add hash ref self; hash
+                | PredicateIntransitive(  ref , verb, subject, gramnbr)               as self -> if inDomain ref then H.add hash ref self; hash
+                | Property1Ary (ref,  adjective, degree)                              as self -> if inDomain ref then H.add hash ref self; hash
+                | Property2Ary (ref,  adjective,  degree, ref2)                       as self -> if inDomain ref then H.add hash ref self; hash
+                | Property3Ary (ref,  adjective,  ref2,  degree,  comptarget, ref3)   as self -> if inDomain ref then H.add hash ref self; hash
+                | Operator2 (op, b, c)                                                as self -> let h1 = makeHashDomain hash b in makeHashDomain h1 c
+                | Operator1 (op, b)                                                   as self -> makeHashDomain hash b
+                | _                                                                           -> hash in
+        L.fold_left makeHashElem1 hash lstdrs 
+
+
 
 
 let rec treefyElem (hash : (var, atom) H.t ) expre =
@@ -454,7 +475,7 @@ let rec treefyElem (hash : (var, atom) H.t ) expre =
 
         | PredicateDiTransitive(  ref ,verb,  subject ,  cod,  coi, gramnbr) -> let subj  = hfind subject in
                                                                                 let cmpod = hfind cod   in
-                                                                                let cmpoi = hfind cod   in
+                                                                                let cmpoi = hfind coi   in
                                                                                 PredicateDiTransitiveT (ref, treefyElem hash subj, verb,  treefyElem hash cmpod, treefyElem hash cmpoi, gramnbr)
 
         | PredicateIntransitive(  ref , verb, subject, gramnbr)              -> let subj  = hfind subject in PredicateIntransitiveT (ref, treefyElem hash subj, verb, gramnbr)
@@ -475,9 +496,48 @@ let rec treefyElem (hash : (var, atom) H.t ) expre =
         | Property3Ary (ref,  adjective,  ref2,  degree,  comptarget, ref3)  -> let b = hfind ref2 in
                                                                                 let c = hfind ref3 in
                                                                                 Property3AryT(ref, adjective, treefyElem hash b, degree, comptarget, treefyElem hash c)
+and cleanDRSTree domain f =
+        let findElem (Var d) el =
+                match el with
+                | ObjectT( Var s, _, _, _, _, _, _, _ )           -> s = d
+                | PredicateIntransitiveT ( Var s, _, _, _ )       -> s = d
+                | PredicateTransitiveT   ( Var s, _, _, _, _ )    -> s = d
+                | PredicateDiTransitiveT ( Var s, _, _, _, _, _ ) -> s = d
+                | _                                               -> false in
+        match f with
+        | FullDRSTree l -> FullDRSTree ( L.filter (fun o -> not (L.exists (fun b -> findElem b o) domain) ) l )
 
+and recCleanDRS f =
+          let rec findElem (Var d) el =
+                match el with
+                | Object( Var s, _, _, _, _, _, _, _ )           -> s = d
+                | PredicateIntransitive ( Var s, _, _, _ )       -> s = d
+                | PredicateTransitive   ( Var s, _, _, _, _ )    -> s = d
+                | PredicateDiTransitive ( Var s, _, _, _, _, _ ) -> s = d
+                | _                                               -> false in
+        let rec cleanElem e =
+                match e with
+                | Operator2(op, d1, d2) -> Operator2(op, recCleanDRS d1, recCleanDRS d2)
+                | Operator1(op, d)      -> Operator1(op, recCleanDRS d)
+                | _ -> e  in
+        match f with
+        | FullDRS(domain,l) -> FullDRS ( [] , L.map cleanElem l |> L.filter (fun o -> not (L.exists (fun b -> findElem b o) domain) ) )
 
-and treefy_drs_pass hash =  function
+(*
+and cleanDRS f =
+        let rec findElem (Var d) el =
+                match el with
+                | Object( Var s, _, _, _, _, _, _, _ )           -> s = d
+                | PredicateIntransitive ( Var s, _, _, _ )       -> s = d
+                | PredicateTransitive   ( Var s, _, _, _, _ )    -> s = d
+                | PredicateDiTransitive ( Var s, _, _, _, _, _ ) -> s = d
+                | _                                               -> false in
+        match f with
+        | FullDRS(domain,l) -> FullDRS ( [] , L.filter (fun o -> not (L.exists (fun b -> findElem b o) domain) ) l )
+*)
+and treefy_drs_pass hash drs =
+        let drs2 = recCleanDRS drs in
+        match drs2 with
         | FullDRS (a,b) -> FullDRSTree( L.map (treefyElem hash) b ) 
 
 
@@ -489,4 +549,19 @@ let stringOfVar  = function
   | ConstStr a -> a
   | Num a -> string_of_int a
   | _ -> "Rien"
+
+
+
+let treefy2 = 1;;
+
+(*
+ * Principes
+ * prop1ary(ref) : on le met dans ref en tant que modificateur
+ * prop2ary(ref,x) : on remplace la variable 2 par son terme, et on le met dans ref en tant que modificateur
+ * prop3ary(ref,x,y) : on remplace la variable 2 et 3 par leur termes respectifs et on le met dans ref en tant que modificateur
+ * relation(x,y) : deviens une "tête", on remplace x et y par leur terme 
+ * modifier_pp(ref, x) : on remplace x par son terme et on met le modifier_pp dans le predicate ref en tant que modificateur
+ * modifier_adv(ref) : on met le modifier_adv dans le predicate ref en tant que modificateur
+ * Réfléchir au fait que object peut devenir un groupe objet et contenir plein de trucs avec has_part*)
+
 

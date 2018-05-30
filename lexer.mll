@@ -2,6 +2,15 @@
   open Parser
   open Lexing
 
+  exception LexErr of string
+
+  let error msg start finish  = 
+          Printf.sprintf "(line %d: char %d..%d): %s" start.pos_lnum 
+          (start.pos_cnum -start.pos_bol) (finish.pos_cnum - finish.pos_bol) msg
+
+  let lex_error lexbuf = 
+          raise ( LexErr (error (lexeme lexbuf) (lexeme_start_p lexbuf) (lexeme_end_p lexbuf)))
+
   let incr_linenum lexbuf =
     let pos = lexbuf.lex_curr_p in
     lexbuf.lex_curr_p <- { pos with
@@ -35,6 +44,7 @@ rule token = parse
   | "CAN"           { CAN }
   | "COMMAND"       { COMMAND }
   | "command"       { COMMAND }
+  | "question"      { QUESTION }
   | "v"             { UNION }
   | "list"          { LIST } 
   | '\"' [^'\"']* '\"' { let str = lexeme lexbuf in STRING (String.sub str 1 (String.length str - 2)) }
@@ -54,6 +64,7 @@ rule token = parse
   | const           { CONST (lexeme lexbuf) }
   | var             { VAR (lexeme lexbuf) }
   | eof             { EOF }
+  | _                      { lex_error lexbuf }
 
 {
 }
