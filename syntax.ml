@@ -2,6 +2,8 @@ open Batteries
 module L = BatList;;
 module H = BatHashtbl;;
 
+Printexc.record_backtrace true;;
+
 (* This first grammar is just made for the parser *)    
 type
  drs = DRS of domainp * conditionsp
@@ -108,7 +110,6 @@ CompTarget This is one of {subj,obj} and it deﬁnes for transitive adjectives w
 | Modifier_pp of var * preposition * var
 
 | HasPart of var * var
-| PartOf of var * var 
 | Named of  name (**)
 | String of  name
 
@@ -141,6 +142,7 @@ and compTarget = Subj | Obj
 and countable = NotCountable | Number of int
 and grammaticalNumber = Plural | Singular | Partitive
 *)
+and alterateur = atomTree 
 and atomTree = 
 (* Ref A variable that stands for this relation and that is used to attach modiﬁers (i.e. adverbs and 
 prepositional phrases). 
@@ -152,9 +154,9 @@ IndObjRef A variable or expression that stands for the indirect object.
   Operator2T of operator * drsTree * drsTree
 | Operator1T  of operator * drsTree
 | SubDrsT     of string   * drsTree
-| PredicateIntransitiveT  of var * atomTree * verbe   * grammaticalNumber(*Subject altérateur*)
-| PredicateTransitiveT  of var * atomTree * verbe   * atomTree  * grammaticalNumber(*Subject altérateur COD *)
-| PredicateDiTransitiveT  of var * atomTree * verbe *  atomTree * atomTree * grammaticalNumber(*Subject altérateur COD COI*)
+| PredicateIntransitiveT  of var * atomTree * verbe * alterateur  * grammaticalNumber(*Subject altérateur*)
+| PredicateTransitiveT  of var * atomTree * verbe  * alterateur  * atomTree  * grammaticalNumber(*Subject altérateur COD *)
+| PredicateDiTransitiveT  of var * atomTree * verbe * alterateur *  atomTree * atomTree * grammaticalNumber(*Subject altérateur COD COI*)
 
 (* Ref The variable that stands for this object and that is used for references. 
 Noun The noun (mass or countable) that was used to introduce the object. 
@@ -163,7 +165,7 @@ Unit If the object was introduced together with a measurement noun (e.g. “2 kg
 Op One of {eq,geq,greater,leq,less,exactly,na}. eq stands for “equal”, geq for “greater or  equal”, and leq for “less or equal”. 
 Count A positive number or na. Together with Unit and Op, this deﬁnes the cardinality or extent of the object. 
  *)
-| ObjectT  of var * noun * classtype * unittype * op * countable (*Ref,Noun,Class,Unit,Op,Count*) * int * int (*Pour le repère de pos*)
+| ObjectT  of var * noun * classtype * unittype * op * countable * alterateur (*Ref,Noun,Class,Unit,Op,Count*) * int * int (*Pour le repère de pos*)
 
 
 (*
@@ -188,7 +190,6 @@ CompTarget This is one of {subj,obj} and it deﬁnes for transitive adjectives w
 | Modifier_ppT  of atomTree * preposition * atomTree 
 
 | HasPartT  of atomTree * atomTree
-| PartOfT  of atomTree * atomTree
 | NamedT  of  name (**)
 | StringT  of  name
 | VarElemt of varTree
@@ -306,8 +307,12 @@ and atom2primitives = function
   |  Atom("property",[ref;adjective;degree;ref2],         x,y) -> 
       Property2Ary (atomNamedString2NamedString ref, Adj (extractString adjective), getDegree (extractString degree),atomNamedString2NamedString ref2)
 
- |  Atom("property",[ref;adjective;degree;ref2;comptarget;ref3],x,y) -> 
+(*  |  Atom("property",[ref;adjective;degree;comptarget;ref3],x,y) -> 
+     Property3Ary (atomNamedString2NamedString ref, Adj (extractString adjective), atomNamedString2NamedString ref2, getDegree (extractString degree), getCompTarget (extractString comptarget), atomNamedString2NamedString ref3)*)
+
+  |  Atom("property",[ref;adjective;ref2;degree;comptarget;ref3],x,y) -> 
      Property3Ary (atomNamedString2NamedString ref, Adj (extractString adjective), atomNamedString2NamedString ref2, getDegree (extractString degree), getCompTarget (extractString comptarget), atomNamedString2NamedString ref3)
+
 
   | Atom("relation",[ref1; Const "of";ref2],    x,y) -> 
       Relation(atomNamedString2NamedString ref1, atomNamedString2NamedString ref2)
@@ -344,7 +349,7 @@ and  extractString =  function
   | Variable a -> a
   | Nbr i      -> string_of_int i
   | Listt sl  -> String.concat "," sl
-  | TermAtom a -> failwith "attendu constante";; 
+  | TermAtom a -> Printexc.get_backtrace () |> print_endline ; failwith "attendu constante";;
 
 
 
@@ -366,12 +371,14 @@ let is_Operator           e = match e with | Operator2(_,_,_) -> true  | Operato
 let is_Relation           e = match e with | Relation(_, _)                        -> true | _ -> false ;;
 let is_Modifier_Adv       e = match e with | Modifier_Adv(_, _, _)                 -> true | _ -> false ;;
 let is_Object             e = match e with | Object(_, _, _,_,_,_,_,_)             -> true | _ -> false ;;
+let is_Property1          e = match e with | Property1Ary (_, _, _ )               -> true | _ -> false ;;
 let is_Property2          e = match e with | Property2Ary (_, _, _, _ )            -> true | _ -> false ;;
 let is_Property3          e = match e with | Property3Ary (_, _, _, _, _, _)       -> true | _ -> false ;;
 let is_HasPart            e = match e with | HasPart (_, _)                        -> true | _ -> false ;;
-let is_PartOf             e = match e with | PartOf  (_, _)                        -> true | _ -> false ;;
 let is_Query              e = match e with | Query   (_,  _)                       -> true | _ -> false ;;    
 
+
+let is_alterateur e = is_Relation e || is_Modifier_Adv e || is_Modifier_pp e || is_Property1 e || is_Property2 e || is_Property3 e
 
 let exists_Object       l = List.exists is_Object l;;
 let exists_Predicate    l = List.exists is_Predicate l;;(* Logique à généraliser TODO*)
@@ -380,6 +387,23 @@ let exists_Modifier_Adv l = List.exists is_Modifier_Adv l;;
 let exists_Relation     l = List.exists is_Relation l;;
 let exists_Operator     l = List.exists is_Operator l;;
 
+
+let rec makeHashDomain hash drs =
+        let domain, lstdrs = match drs with FullDRS( d, l) -> d, l in
+        let inDomain v = L.exists (fun e -> e = v) domain in
+        let rec makeHashElem1 hash elem =
+                match elem with
+                | Object(  ref,  name,  countable,  unittype,  op, count,x,y)         as self -> if inDomain ref then H.add hash ref self; hash
+                | PredicateTransitive( ref, verb,   subject , cod, gramnbr )          as self -> if inDomain ref then H.add hash ref self; hash
+                | PredicateDiTransitive(  ref ,verb,  subject ,  cod,  coi, gramnbr)  as self -> if inDomain ref then H.add hash ref self; hash
+                | PredicateIntransitive(  ref , verb, subject, gramnbr)               as self -> if inDomain ref then H.add hash ref self; hash
+                | Property1Ary (ref,  adjective, degree)                              as self -> if inDomain ref then H.add hash ref self; hash
+                | Property2Ary (ref,  adjective,  degree, ref2)                       as self -> if inDomain ref then H.add hash ref self; hash
+                | Property3Ary (ref,  adjective,  ref2,  degree,  comptarget, ref3)   as self -> if inDomain ref then H.add hash ref self; hash
+                | Operator2 (op, b, c)                                                as self -> let h1 = makeHashDomain hash b in makeHashDomain h1 c
+                | Operator1 (op, b)                                                   as self -> makeHashDomain hash b
+                | _                                                                           -> hash in
+        L.fold_left makeHashElem1 hash lstdrs 
 
 
 
@@ -403,8 +427,8 @@ and maptreeElem f = function
   | Operator2 (op, b, c)                                                as self -> Operator2(op, maptree f b, maptree f c)
   | Operator1 (op, b)                                                   as self -> Operator1(op, maptree f b) 
   | String a                                                            as self -> f self 
-  | Named  a                                                            as self -> f self 
-  | PartOf(a,b)                                                         as self -> f self 
+  | Named  a                                                            as self -> f self
+  | SubDrs(a, dr)                                                       as self -> f self 
   | Rien                                                                as self -> f self ;;
 
 
@@ -422,35 +446,165 @@ and makeHashElem hash =
         | Property1Ary (ref,  adjective, degree)                              as self -> H.add hash ref self; hash
         | Property2Ary (ref,  adjective,  degree, ref2)                       as self -> H.add hash ref self; hash
         | Property3Ary (ref,  adjective,  ref2,  degree,  comptarget, ref3)   as self -> H.add hash ref self; hash
-        | Relation( ref1,  ref2)                                              as self -> hash
-        | Modifier_Adv(  ref, adverb,  degree)                                as self -> hash
-        | Modifier_pp ( ref1,  preposition, ref2)                             as self -> hash
-        | HasPart( groupref, memberref)                                       as self -> hash
-        | Query( ref,  questionWord)                                          as self ->  hash
+        | Relation( ref1,  ref2)                                              as self -> H.add hash ref1 self; hash
+        | Modifier_Adv(  ref, adverb,  degree)                                as self -> H.add hash ref self; hash
+        | Modifier_pp ( ref1,  preposition, ref2)                             as self -> H.add hash ref1 self; hash
+        | HasPart( groupref, memberref)                                       as self -> H.add hash groupref self; hash
+        | Query( ref,  questionWord)                                          as self -> H.add hash ref self; hash
         | Operator2 (op, b, c)                                                as self -> let h1 = makeHash hash b in makeHash h1 c
         | Operator1 (op, b)                                                   as self -> makeHash hash b
         | String a                                                            as self -> hash 
+        | SubDrs(a, dr)                                                       as self -> makeHash hash dr
         | Named  a                                                            as self -> hash
-        | PartOf(a,b)                                                         as self -> hash
         | Rien                                                                        -> hash
+        
+let getDRSCondition g  = match g with | FullDRS(a,b) -> a,b;;
+
+let stringOfVar  = function
+  | Var a -> a
+  | ConstStr a -> a
+  | Num a -> string_of_int a
+  | _ -> "Rien"
 
 
-let rec makeHashDomain hash drs =
-        let domain, lstdrs = match drs with FullDRS( d, l) -> d, l in
-        let inDomain v = L.exists (fun e -> e = v) domain in
-        let rec makeHashElem1 hash elem =
-                match elem with
-                | Object(  ref,  name,  countable,  unittype,  op, count,x,y)         as self -> if inDomain ref then H.add hash ref self; hash
-                | PredicateTransitive( ref, verb,   subject , cod, gramnbr )          as self -> if inDomain ref then H.add hash ref self; hash
-                | PredicateDiTransitive(  ref ,verb,  subject ,  cod,  coi, gramnbr)  as self -> if inDomain ref then H.add hash ref self; hash
-                | PredicateIntransitive(  ref , verb, subject, gramnbr)               as self -> if inDomain ref then H.add hash ref self; hash
-                | Property1Ary (ref,  adjective, degree)                              as self -> if inDomain ref then H.add hash ref self; hash
-                | Property2Ary (ref,  adjective,  degree, ref2)                       as self -> if inDomain ref then H.add hash ref self; hash
-                | Property3Ary (ref,  adjective,  ref2,  degree,  comptarget, ref3)   as self -> if inDomain ref then H.add hash ref self; hash
-                | Operator2 (op, b, c)                                                as self -> let h1 = makeHashDomain hash b in makeHashDomain h1 c
-                | Operator1 (op, b)                                                   as self -> makeHashDomain hash b
-                | _                                                                           -> hash in
-        L.fold_left makeHashElem1 hash lstdrs 
+
+(*let rec treefy2 arbr = *)
+        let h           = H.create 67;;
+        let hpass1  : (var, atom) H.t    = H.create 34;;
+        (*let hashgen     = makeHash h arbr in 1;;*)
+
+let rec treefyAtom a = RienT
+
+
+(*and firstpass h hpass1 atom  =
+                if is_alterateur atom then
+                match atom with
+                (* On va chercher les sous objets en params*)
+                | Property2Ary (ref,  adjective,  degree, ref2)                        -> if H.mem h ref2 then 
+                                                                                           Property2Ary(ref,adjective, degree, SubAtom(H.find h ref2) ) |> H.add hpass1 ref
+                | Property3Ary (ref,  adjective,  ref2,  degree,  comptarget, ref3)    -> if H.mem h ref2 && H.mem h ref3 then 
+                                                                                           Property3Ary(ref, adjective, SubAtom (H.find h ref2), degree, comptarget,SubAtom ( H.find h ref3) ) |> H.add hpass1 ref
+                                                                                          else if H.mem h ref2 && (not  (H.mem h ref3)) then
+                                                                                                  Property3Ary(ref,adjective, SubAtom (H.find h ref2), degree, comptarget, ref3  ) |> H.add hpass1 ref
+                                                                                          else if  (not (H.mem h ref2)) && H.mem h ref3 then
+                                                                                                  Property3Ary(ref,adjective, ref2  , degree, comptarget, SubAtom (H.find h  ref3) ) |> H.add hpass1 ref
+                                                                                          else ()
+                | Relation( ref1,  ref2)                                               -> if H.mem h ref1 && H.mem h ref2 then
+                                                                                           Relation(SubAtom (H.find h ref1), SubAtom (H.find h ref2)) |> H.add hpass1 ref1
+                                                                                          else () (*Une relation a FORCÉMENT les 2 vars référencées*)
+                | Modifier_pp ( ref1,  preposition, ref2)                              -> if H.mem h ref2 then Modifier_pp(ref1,preposition, SubAtom (H.find h ref2)) |> H.add hpass1 ref1
+                | _                                                                    -> ()
+                (*| HasPart( groupref, memberref)                                        -> H.add hash groupref self; hash*)
+
+                else ()*)
+let rec treefy_drs_pass1 drs =
+        let _ = makeHash h drs in
+        match drs with
+        | FullDRS (a,b) -> FullDRS( a, L.map (firstpass) b)
+
+(* On arbrifie les paramètres de *)        
+and firstpass  atom  =
+                if is_alterateur atom then
+                match atom with
+                (* On va chercher les sous objets en params*)
+                | Property2Ary (ref,  adjective,  degree, ref2)                        -> if H.mem h ref2 then Property2Ary(ref,adjective, degree, SubAtom(H.find h ref2) ) else atom
+                | Property3Ary (ref,  adjective,  ref2,  degree,  comptarget, ref3)    -> if H.mem h ref2 && H.mem h ref3 then 
+                                                                                                Property3Ary(ref, adjective, SubAtom (H.find h ref2), degree, comptarget,SubAtom ( H.find h ref3) ) 
+                                                                                          else if H.mem h ref2 && (not  (H.mem h ref3)) then
+                                                                                                  Property3Ary(ref,adjective, SubAtom (H.find h ref2), degree, comptarget, ref3  ) 
+                                                                                          else if  (not (H.mem h ref2)) && H.mem h ref3 then
+                                                                                                  Property3Ary(ref,adjective, ref2  , degree, comptarget, SubAtom (H.find h  ref3) ) 
+                                                                                          else atom
+                | Relation( ref1,  ref2)                                               -> if H.mem h ref1 && H.mem h ref2 then
+                                                                                           Relation(SubAtom (H.find h ref1), SubAtom (H.find h ref2)) 
+                                                                                          else atom (*Une relation a FORCÉMENT les 2 vars référencées*)
+                | Modifier_pp ( ref1,  preposition, ref2)                              -> print_endline "Mod ok!"; 
+                                                                                          if H.mem h ref2 then Modifier_pp(ref1,preposition, SubAtom (H.find h ref2)) else failwith "pas trouvé"
+       
+                | _                                                                    -> atom
+                else 
+                        match atom with
+                        | Operator2(op, d1, d2)                                        -> Operator2(op, treefy_drs_pass1 d1, treefy_drs_pass1 d2)
+                        | Operator1(op, d)                                             -> Operator1(op, treefy_drs_pass1 d)
+                        | SubDrs(s, d)                                                 -> SubDrs(s, treefy_drs_pass1 d)
+                        | _ -> atom
+
+
+let rec treefy_drs_pass2 drs =
+        match drs with
+        | FullDRS (a,b) -> FullDRSTree( L.map secondpass b )
+and varTree_of_var = function
+        | Var a -> Vart a
+        | ConstStr a -> ConstStrt a
+        | Num a -> Numt a
+        | SubAtom a -> SubAtomt (treefyAtom a)
+        | List a -> Listt a
+and secondpass atom =
+                match atom with
+                | Object(  ref,  name,  countable,  unittype,  op, count,x,y)         -> if H.mem h ref && H.find h ref |> is_alterateur then 
+                                                                                             ObjectT ( ref,  name,  countable,  unittype,  op, count, H.find h ref, x,y)
+                                                                                          else ObjectT(  ref,  name,  countable,  unittype,  op, count,RienT, x,y)
+(* On en est là : 
+        * Là, il faut faire sn sorte de gérer tous les cas, qu'on ait une ou plusieurs ref dans le H et mettre qq chose en fonction, et ensuite convertir !!!
+        * Appliquer ensuite la recette chez les autres
+        * ===> Faire une fonction findInHOrId : Hash -> atom -> atomTree et qui rend le atomTree correspondant à la var si elle existe dans le Hash, et rend la conversion du atom courant sinon
+        * Ensuite utiliser le compilo pour gérer*)
+                | PredicateTransitive(  ref, verb,   subject , cod, gramnbr )         -> if H.mem h ref && H.find h ref |> is_alterateur then
+                                                                                             PredicateTransitiveT(ref , subject, verb, H.find h ref, , gramnbr)
+                                                                                         if H.mem h subject  then
+                                                                                             PredicateTransitiveT(ref , H.find h subject, verb, RientT, cod, gramnbr)
+                                                                                          else if H.mem h cod  then
+                                                                                             PredicateTransitiveT(ref , subject, verb, H.find h cod, subject, cod, gramnbr)
+                                                                                          else PredicateTransitiveT(  ref, subject, verb, RienT, cod, gramnbr )
+
+                | PredicateDiTransitive( ref ,verb,  subject ,  cod,  coi, gramnbr)   -> if H.mem h subject && H.find h subject |> is_alterateur then
+                                                                                             PredicateDiTransitiveT(ref , subject, verb, H.find h subject, coi, gramnbr)
+                                                                                          else if H.mem h cod && H.find h cod |> is_alterateur then
+                                                                                             PredicateDiTransitiveT(ref ,subject, verb, H.find h cod, coi, gramnbr)
+                                                                                           else if H.mem h coi && H.find h coi |> is_alterateur then
+                                                                                             PredicateDiTransitiveT(ref , subject, verb, cod, H.find h coi, gramnbr)
+                                                                                          else PredicateDiTransitiveT( ref ,subject, verb, RienT,  cod,  coi, gramnbr) 
+                (* Si le sujet est un alterateur*)
+                | PredicateIntransitive(  ref , verb, subject, gramnbr)               -> if H.mem h subject && H.find h subject |> is_alterateur then
+                                                                                             PredicateIntransitiveT(ref , verb, H.find h subject, subject, gramnbr)
+                                                                                          else PredicateIntransitiveT(  ref ,subject, verb, RienT, gramnbr)
+               (* | Property1Ary (ref,  adjective, degree)                              -> H.add hash ref self; hash
+                | Property2Ary (ref,  adjective,  degree, ref2)                       -> H.add hash ref self; hash
+                | Property3Ary (ref,  adjective,  ref2,  degree,  comptarget, ref3)   -> H.add hash ref self; hash
+                | Relation( ref1,  ref2)                                              -> H.add hash ref1 self; hash
+                | Modifier_Adv(  ref, adverb,  degree)                                -> H.add hash ref self; hash
+                | Modifier_pp ( ref1,  preposition, ref2)                             -> H.add hash ref1 self; hash
+                | HasPart( groupref, memberref)                                       -> H.add hash groupref self; hash
+                | Query( ref,  questionWord)                                          -> H.add hash ref self; hash
+                | Operator2 (op, b, c)                                                -> let h1 = makeHash hash b in makeHash h1 c
+                | Operator1 (op, b)                                                   -> makeHash hash b
+                | String a                                                            -> hash 
+                | Named  a                                                            -> hash
+                | Rien                                                                -> hash*)
+
+
+
+
+(*
+ * Principes
+ * prop1ary(ref) : on le met dans ref en tant que modificateur | Algo: Si on tombe sur un objet(ref,...), on vérifie qu'on a pas un prop1ary(ref) dans le H, si oui, on le met dans l'objet
+ * prop2ary(ref,x) : on remplace la variable 2 par son terme, et on le met dans ref en tant que modificateur | Algo : Si on tombe sur predicate/objet, on vérifie qu'on ait pas un prop2ary(ref,x) tel que pred/objet(...ref...). Dans le
+    prop2ary, en queue, on met l'objet
+ * prop3ary(ref,x,y) : on remplace la variable 2 et 3 par leur termes respectifs et on le met dans ref en tant que modificateur | idem prop2ary avec
+ * relation(x,y) : deviens une "tête", on remplace x et y par leur terme | Algo : on remplace x et y par leur terme respectif, et si on tombe sur un objet ou predicate ayant un ref relation(ref,x), alors on remplace
+ * modifier_pp(ref, x) : on remplace x par son terme et on met le modifier_pp dans le predicate ref en tant que modificateur | Algo : on remplace x par son terme, puis si on trouve un objet ayant ref comme variable, alors on le met à la place
+ * modifier_adv(ref) : on met le modifier_adv dans le predicate ref en tant que modificateur | Algo: Si on tombe sur un objet(ref,...), on vérifie qu'on a pas un prop1ary(ref) dans le H, si oui, on le met dans l'objet
+ * Réfléchir au fait que object peut devenir un groupe objet et contenir plein de trucs avec has_part
+ *
+ *
+ *
+ * I. Faire un hash de TOUT (reprendre la 1ère fonction en fait)
+ * II. Faire une première passe où on remplace les paramètres second de terme secondaire comme propXary, relation, modifier_yy par leur objet. A chaque fois, faire un hash ref -> terme construit
+ * III. 
+ *
+ * *)
+
+(*
 
 
 
@@ -483,7 +637,6 @@ let rec treefyElem (hash : (var, atom) H.t ) expre =
         | Operator1 (op, FullDRS(_,b))                                       -> Operator1T (op,  FullDRSTree(b |> L.map (treefyElem hash)))
         | HasPart(a,b)                                                       -> let mero = hfind a in let mero2 = hfind b in HasPartT ( treefyElem hash mero, treefyElem hash mero2)
         | Relation(a,b)                                                      -> let mero = hfind a in let mero2 = hfind b in RelationT ( treefyElem hash mero, treefyElem hash mero2)      
-        | PartOf(a,b)                                                        -> let mero = hfind a in let mero2 = hfind b in PartOfT ( treefyElem hash mero, treefyElem hash mero2)
         | String a                                                           -> StringT a 
         | Named  a                                                           -> NamedT a
         | Rien                                                               -> RienT 
@@ -540,28 +693,5 @@ and treefy_drs_pass hash drs =
         match drs2 with
         | FullDRS (a,b) -> FullDRSTree( L.map (treefyElem hash) b ) 
 
-
-        
-let getDRSCondition g  = match g with | FullDRS(a,b) -> a,b;;
-
-let stringOfVar  = function
-  | Var a -> a
-  | ConstStr a -> a
-  | Num a -> string_of_int a
-  | _ -> "Rien"
-
-
-
-let treefy2 = 1;;
-
-(*
- * Principes
- * prop1ary(ref) : on le met dans ref en tant que modificateur
- * prop2ary(ref,x) : on remplace la variable 2 par son terme, et on le met dans ref en tant que modificateur
- * prop3ary(ref,x,y) : on remplace la variable 2 et 3 par leur termes respectifs et on le met dans ref en tant que modificateur
- * relation(x,y) : deviens une "tête", on remplace x et y par leur terme 
- * modifier_pp(ref, x) : on remplace x par son terme et on met le modifier_pp dans le predicate ref en tant que modificateur
- * modifier_adv(ref) : on met le modifier_adv dans le predicate ref en tant que modificateur
- * Réfléchir au fait que object peut devenir un groupe objet et contenir plein de trucs avec has_part*)
-
+*)
 
