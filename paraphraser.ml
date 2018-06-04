@@ -33,10 +33,10 @@ let pc = parsecomplete;;
 let cleanDRS f =
         let findElem (Var d) el =
                 match el with
-                | Object( Var s, _, _, _, _, _, _, _ )           -> s = d
-                | PredicateIntransitive ( Var s, _, _, _ )       -> s = d
-                | PredicateTransitive   ( Var s, _, _, _, _ )    -> s = d
-                | PredicateDiTransitive ( Var s, _, _, _, _, _ ) -> s = d
+                | Object( Var s, _, _, _, _, _, _, _,_ )           -> s = d
+                | PredicateIntransitive ( Var s, _, _,_, _ )       -> s = d
+                | PredicateTransitive   ( Var s, _, _,_, _, _ )    -> s = d
+                | PredicateDiTransitive ( Var s, _, _,_, _, _, _ ) -> s = d
                 | _                                               -> false in
         match f with
         | FullDRS(domain,l) -> FullDRS ( [] , L.filter (fun o -> not (L.exists (fun b -> findElem b o) domain) ) l )
@@ -59,7 +59,7 @@ let verb2str verb sing =
 
 let objet_en_tant_que_sujet obj =
         match obj with
-        | Object(  ref, Nom name,  countable,  unittype,  op, Number count,x,y)  ->
+        | Object(  ref, Nom name,  countable,  unittype,  op, Number count,_,x,y)  ->
                         (match countable, unittype, op with
                         | Countable, Na        , o    ->  (
                                 match o with 
@@ -83,7 +83,7 @@ let objet_en_tant_que_sujet obj =
                         )
                         | _ , _ , _ -> failwith "Cas objet non traité"
                         )
-         | Object(  ref, Nom name,  countable,  unittype,  op,  notCountable,x,y)  -> name^" "
+         | Object(  ref, Nom name,  countable,  unittype,  op,  notCountable,_,x,y)  -> name^" "
          | Named nom  -> nom^" "
          | String nom -> nom^" "
          | Property1Ary(ref, Adj happy , Pos) -> happy^" "
@@ -116,10 +116,10 @@ let rec paraphrase_relation   lst_relat =
                 let verbe = List.find is_Predicate lst_relat in
                 let verbe_relat v = 
                         match v with
-                        | PredicateIntransitive ( ref , Verbe verb,  subject, gramnbr    )               ->  phrase_relat^(verb2str verb gramnbr)
-                        | PredicateTransitive   ( ref , Verbe verb, elemSubj, cod, gramnbr )      ->  phrase_relat^(verb2str verb gramnbr)^(matchsub cod)
-                        | PredicateTransitive   ( ref , Verbe verb, subject, Num nbr, gramnbr )      ->  phrase_relat^(verb2str verb gramnbr)^(string_of_int nbr)
-                        | PredicateDiTransitive ( ref , Verbe verb,  subject, cod,  coi, gramnbr )  ->    phrase_relat^(verb2str verb gramnbr)^(matchsub cod)^"to "^(matchsub coi)
+                        | PredicateIntransitive ( ref , Verbe verb,_,  subject, gramnbr    )               ->  phrase_relat^(verb2str verb gramnbr)
+                        | PredicateTransitive   ( ref , Verbe verb,_, elemSubj, cod, gramnbr )      ->  phrase_relat^(verb2str verb gramnbr)^(matchsub cod)
+                        | PredicateTransitive   ( ref , Verbe verb,_, subject, Num nbr, gramnbr )      ->  phrase_relat^(verb2str verb gramnbr)^(string_of_int nbr)
+                        | PredicateDiTransitive ( ref , Verbe verb,_,  subject, cod,  coi, gramnbr )  ->    phrase_relat^(verb2str verb gramnbr)^(matchsub cod)^"to "^(matchsub coi)
                         | _ -> failwith "paraphrase_from_verb : cas paraphrase non traité" in
                 verbe_relat verbe
         with Not_found -> phrase_relat;;
@@ -140,9 +140,9 @@ let rec paraphrase_modifiers  modif =
 and paraphrase_from_verb verbe = 
         try
         match verbe with
-        | PredicateIntransitive (ref, Verbe verb, elem1, gramnbr) -> (matchsub elem1)^(verb2str verb gramnbr)
-        | PredicateTransitive   (ref, Verbe verb, elem1, elem2, gramnbr) -> (matchsub elem1)^(verb2str verb gramnbr)^(matchsub elem2)
-        | PredicateDiTransitive (ref, Verbe verb, elem1, elem2, elem3, gramnbr) -> (matchsub elem1)^(verb2str verb gramnbr)^(matchsub elem2)^" to "^(matchsub elem3)
+        | PredicateIntransitive (ref, Verbe verb,_, elem1, gramnbr) -> (matchsub elem1)^(verb2str verb gramnbr)
+        | PredicateTransitive   (ref, Verbe verb,_, elem1, elem2, gramnbr) -> (matchsub elem1)^(verb2str verb gramnbr)^(matchsub elem2)
+        | PredicateDiTransitive (ref, Verbe verb,_, elem1, elem2, elem3, gramnbr) -> (matchsub elem1)^(verb2str verb gramnbr)^(matchsub elem2)^" to "^(matchsub elem3)
         | _ -> failwith "paraphrase_from_verb : cas paraphrase non traité"
         with Not_found -> failwith "ahhhhhh"
 
@@ -174,9 +174,9 @@ and aiguillage_phrase drs lst  =
                                   let modifiers  = List.filter is_Modifier_pp [stringOfVar variableVerbe |> find_obj] in
                                   phrasebase^" "^(String.concat " " (List.map paraphrase_modifiers modifiers))  in
         let mkPhrase verb = (match verb with
-                          | PredicateIntransitive ( ref , verbe_,  subject, gramnbr    )  -> genere verb ref
-                          | PredicateTransitive  ( ref , verbe_,  subject,  cod, gramnbr )  -> genere verb ref
-                          | PredicateDiTransitive ( ref , verb_, SubAtom subject, SubAtom cod, SubAtom coi, gramnbr )  ->  genere verb ref
+                          | PredicateIntransitive ( ref , verbe_,_,  subject, gramnbr    )  -> genere verb ref
+                          | PredicateTransitive  ( ref , verbe_,_,  subject,  cod, gramnbr )  -> genere verb ref
+                          | PredicateDiTransitive ( ref , verb_,_, SubAtom subject, SubAtom cod, SubAtom coi, gramnbr )  ->  genere verb ref
                           | _  -> failwith "aiguillage_phrase : Aiguillage : non verbe")
                 in
         match  exists_Operator l, exists_Predicate l, exists_Modifier_pp l, exists_Relation l with
@@ -214,9 +214,9 @@ let dispatch_sentence drs =
         simples@conds
 
 let g = FullDRS ([Var "J1"; Var "K1"; Var "L1"],
-[Object (Var "J1", Nom "time", Countable, Na, Greater, Number 2, 13, 8);
- Object (Var "K1", Nom "day", Countable, Na, Eq, Number 10, 13, 13);
- PredicateTransitive (Var "L1", Verbe "vote", SubAtom (Named "User1"), Var "J1", Singular);
+[Object (Var "J1", Nom "time", Countable, Na, Greater, Number 2,[], 13, 8);
+Object (Var "K1", Nom "day", Countable, Na, Eq, Number 10, [], 13, 13);
+PredicateTransitive (Var "L1", Verbe "vote", [], SubAtom (Named "User1"), Var "J1", Singular);
  Modifier_pp (Var "L1", Preposition "in", Var "K1");
  Modifier_pp (Var "L1", Preposition "for", SubAtom (Named "User2"))]);;
 
