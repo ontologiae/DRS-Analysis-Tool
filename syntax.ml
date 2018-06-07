@@ -698,6 +698,72 @@ let regle9 l = reglex l is_Object is_Predicate rule9 sameParam2Ref true
 let regle10 l = reglex l is_Object is_Predicate rule10 sameParam3Ref true
 
 
+
+let getVarsAccordingToRule atom rul =
+        let addIfRightPos var  isOktoAdd =
+                if isOktoAdd then Some(var) else None in
+        let defvar, alterateur, param1, param2, param3 = rul in
+        match atom with
+        | Object( ref,  name,  countable,  unittype,  op, count,_,x,y)                          -> [addIfRightPos ref defvar]
+        | PredicateTransitive( ref, verb, _,  Var subject , Var cod, gramnbr )                  -> [addIfRightPos refdefvar; addIfRightPos (Var subject) param1 ; addIfRightPos (Var cod) param2]
+        (*TODO : continuer le délire*)
+        | PredicateTransitive( ref, verb, _,  _ , Var cod, gramnbr )                            -> [ref; Var "KAMOULOX" ; Var cod]
+        | PredicateTransitive( ref, verb, _,  Var subject , _, gramnbr )                        -> [ref; Var subject ; Var "KAMOULOX"]
+        | PredicateTransitive( ref, verb, _,  _ , _, gramnbr )                                  -> [ref; Var "KAMOULOX" ; Var "KAMOULOX"]
+
+        | PredicateDiTransitive(  ref ,verb,_,  Var subject , Var cod, Var coi, gramnbr)        -> [ref; Var subject ; Var cod; Var coi]
+        | PredicateDiTransitive(  ref ,verb,_,  Var subject , Var cod, _, gramnbr)              -> [ref; Var subject ; Var cod; Var "KAMOULOX"]
+        | PredicateDiTransitive(  ref ,verb,_,  Var subject , _, Var coi, gramnbr)              -> [ref; Var subject ; Var "KAMOULOX"; Var coi]
+        | PredicateDiTransitive(  ref ,verb,_,  _ , Var cod, Var coi, gramnbr)                  -> [ref; Var "KAMOULOX" ; Var cod; Var coi]
+        | PredicateDiTransitive(  ref ,verb,_,  _ , _, Var coi, gramnbr)                        -> [ref; Var "KAMOULOX" ; Var "KAMOULOX"; Var coi]
+        | PredicateDiTransitive(  ref ,verb,_,  Var subject , _, Var coi, gramnbr)              -> [ref; Var subject ; Var "KAMOULOX"; Var coi]
+        | PredicateDiTransitive(  ref ,verb,_,  _ , Var cod, _, gramnbr)                        -> [ref; Var "KAMOULOX" ; Var cod; Var "KAMOULOX"]
+        | PredicateDiTransitive(  ref ,verb,_,  _ , _, _, gramnbr)                              -> [ref; Var "KAMOULOX" ; Var "KAMOULOX"; Var "KAMOULOX"]
+        
+        | PredicateIntransitive(  ref , verb,_, Var subject, gramnbr)                           -> [ref; Var subject]
+        | PredicateIntransitive(  ref , verb,_, _, gramnbr)                                     -> [ref; Var "KAMOULOX"]
+        | Property1Ary (ref,  adjective, degree)                                                -> [ref]
+        | Property2Ary (ref,  adjective,  degree, Var ref2)                                     -> [ref; Var ref2]
+        | Property2Ary (ref,  adjective,  degree, ref2)                                         -> [ref; ref2]
+        
+        | Property3Ary (ref,  adjective,  Var ref2,  degree,  comptarget, Var ref3)             -> [ref; Var ref2; Var ref3]
+        | Property3Ary (ref,  adjective,   ref2,  degree,  comptarget, Var ref3)                -> [ref; Var ref3]
+        | Property3Ary (ref,  adjective,  Var ref2,  degree,  comptarget,  ref3)                -> [ref; Var ref2]
+        | Property3Ary (ref,  adjective,  ref2,  degree,  comptarget,  ref3)                    -> [ref]
+        
+        
+        
+        | Relation( ref1, Var ref2)                                                             -> [ref1; Var ref2 ]
+        | Relation( ref1,  ref2)                                                                -> [ref1]        
+        | Modifier_Adv(  ref, adverb,  degree)                                                  -> [ref]
+        | Modifier_pp ( ref1,  preposition, Var ref2)                                           -> [ref1; Var ref2]
+        | HasPart( groupref, Var memberref)                                                     -> [groupref; Var memberref]
+        | Query( ref,  questionWord)                                                            -> [ref]
+        | Operator2 (op, b, c)                                                                  -> [] (*TODO : gérer ces cas*)
+        | Operator1 (op, b)                                                                     -> []
+        | String a                                                                              -> []
+        | Named  a                                                                              -> []
+        | SubDrs(a, dr)                                                                         -> [Var a]
+        | Rien                                                                                  -> [] ;;
+(*TODO : une fois la liste terminée, filtrer les None et transformer les Some en Var*)
+
+(* INTERPRÉTEUR DE RÈGLE
+ *
+ * 1. Décrire quel terme est relié à quel autre en fonction de la position de la variable du terme 1 et du terme 2 (ie. construction du couple)
+ * 2. Description des possibilités de substitution : terme1 dans altérateur de terme2, dans param1, param2, param3. Avec possibilité multiples : atérateur uniquement, param1,2,3
+ *
+ * EXEMPLE :
+         * Objet -> predicate si l'un des param est liés
+         * Rule ( RObjet, RPredicate, LinkPos (true,false, false, false,false), DestPos (false, false, true, true, true))
+         * ie : Objet recherchés = objet et prédicat, l'objet est lié à une variable du prédicat uniquement via sa variable, et le lien est fait uniquement sur les param1,2,3
+         *
+ * Mise en oeuvre : recherche de couples dans le bon sens. On va rendre plus intelligent le fctestEquiv dans getCouples en lui donnant Link (true,false, false, false,false), Dest (false, false, true, true, true)
+ * écriture de cette fonction : pour chaque true, je relève la variable si elle existe => Falloir faire un match pour chaque cas, idem pour le dest FIXME NOTE => getVarsAccordingToRule
+ * TODO: Sur les 2 termes on lance un getVarsAccordingToRule en fonction de la règle LinkPos/DestPos, et on regarde ce qui matche dans les 2 listes. A chaque fois qu'il y a match, on fait la subtstitution du 1er dans le 2nd
+ * *)
+
+
+
  (* Principes
  * prop1ary(ref) : on le met dans ref en tant que modificateur | Algo: Si on tombe sur un objet(ref,...), on vérifie qu'on a pas un prop1ary(ref) dans le H, si oui, on le met dans l'objet
  * prop2ary(ref,x) : on remplace la variable 2 par son terme, et on le met dans ref en tant que modificateur | Algo : Si on tombe sur predicate/objet, on vérifie qu'on ait pas un prop2ary(ref,x) tel que pred/objet(...ref...). Dans le
