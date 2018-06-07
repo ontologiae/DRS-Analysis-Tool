@@ -4,6 +4,15 @@ module H = BatHashtbl;;
 
 Printexc.record_backtrace true;;
 
+
+let rec comb m lst =
+  match m, lst with
+    0, _ -> [[]]
+  | _, [] -> []
+  | m, x :: xs -> List.map (fun y -> x :: y) (comb (pred m) xs) @
+                  comb m xs
+;;
+
 (* This first grammar is just made for the parser *)    
 type
  drs = DRS of domainp * conditionsp
@@ -381,12 +390,14 @@ let is_Query              e = match e with | Query   (_,  _)                    
 
 let is_alterateur e = is_Relation e || is_Modifier_Adv e || is_Modifier_pp e || is_Property1 e || is_Property2 e || is_Property3 e
 
-let exists_Object       l = List.exists is_Object l;;
-let exists_Predicate    l = List.exists is_Predicate l;;(* Logique à généraliser TODO*)
-let exists_Modifier_pp  l = List.exists is_Modifier_pp l;;
-let exists_Modifier_Adv l = List.exists is_Modifier_Adv l;;
-let exists_Relation     l = List.exists is_Relation l;;
-let exists_Operator     l = List.exists is_Operator l;;
+let exists_Object       l = L.exists is_Object l;;
+let exists_Predicate    l = L.exists is_Predicate l;;(* Logique à généraliser TODO*)
+let exists_Modifier_pp  l = L.exists is_Modifier_pp l;;
+let exists_Modifier_Adv l = L.exists is_Modifier_Adv l;;
+let exists_Relation     l = L.exists is_Relation l;;
+let exists_Operator     l = L.exists is_Operator l;;
+let exists_Property1    l = L.exists is_Property1 l;;
+let exists_Property23   l = L.exists (fun e -> is_Property2 e || is_Property3 e) l;;
 
 
 let rec makeHashDomain hash drs =
@@ -531,8 +542,364 @@ and firstpass  atom  =
                         | SubDrs(s, d)                                                 -> SubDrs(s, treefy_drs_pass1 d)
                         | _ -> atom
 
+
+
+let termScore atom =
+        match atom with
+        | Object(  ref,  name,  countable,  unittype,  op, count,_,x,y)          -> 5,0
+        | PredicateTransitive( ref, verb, _,  subject , cod, gramnbr )           -> 6,2
+        | PredicateDiTransitive(  ref ,verb,_,  subject ,  cod,  coi, gramnbr)   -> 6,3
+        | PredicateIntransitive(  ref , verb,_, subject, gramnbr)                -> 6,1
+        | Property1Ary (ref,  adjective, degree)                                 -> 1,0
+        | Property2Ary (ref,  adjective,  degree, ref2)                        ->  2,0
+        | Property3Ary (ref,  adjective,  ref2,  degree,  comptarget, ref3)    ->  2,2
+        | Relation( ref1,  ref2)                                               ->  7,2
+        | Modifier_Adv(  ref, adverb,  degree)                                 ->  1,0
+        | Modifier_pp ( ref1,  preposition, ref2)                              ->  1,2
+        | HasPart( groupref, memberref)                                        ->  2,2
+        | Query( ref,  questionWord)                                           ->  5,0
+        | Operator2 (op, b, c)                                                 -> 0,0
+        | Operator1 (op, b)                                                    -> 0,0
+        | String a                                                             -> 0 ,0
+        | Named  a                                                             -> 0,0
+        | SubDrs(a, dr)                                                        -> 0,0
+        | Rien                                                                 -> 0,0 ;;
+
+
+let getRefAndParams atom =
+        match atom with
+        | Object( ref,  name,  countable,  unittype,  op, count,_,x,y)                          -> [ref]
+        | PredicateTransitive( ref, verb, _,  Var subject , Var cod, gramnbr )                  -> [ref; Var subject ; Var cod]
+        | PredicateTransitive( ref, verb, _,  _ , Var cod, gramnbr )                            -> [ref; Var "KAMOULOX" ; Var cod]
+        | PredicateTransitive( ref, verb, _,  Var subject , _, gramnbr )                        -> [ref; Var subject ; Var "KAMOULOX"]
+        | PredicateTransitive( ref, verb, _,  _ , _, gramnbr )                                  -> [ref; Var "KAMOULOX" ; Var "KAMOULOX"]
+
+        | PredicateDiTransitive(  ref ,verb,_,  Var subject , Var cod, Var coi, gramnbr)        -> [ref; Var subject ; Var cod; Var coi]
+        | PredicateDiTransitive(  ref ,verb,_,  Var subject , Var cod, _, gramnbr)              -> [ref; Var subject ; Var cod; Var "KAMOULOX"]
+        | PredicateDiTransitive(  ref ,verb,_,  Var subject , _, Var coi, gramnbr)              -> [ref; Var subject ; Var "KAMOULOX"; Var coi]
+        | PredicateDiTransitive(  ref ,verb,_,  _ , Var cod, Var coi, gramnbr)                  -> [ref; Var "KAMOULOX" ; Var cod; Var coi]
+        | PredicateDiTransitive(  ref ,verb,_,  _ , _, Var coi, gramnbr)                        -> [ref; Var "KAMOULOX" ; Var "KAMOULOX"; Var coi]
+        | PredicateDiTransitive(  ref ,verb,_,  Var subject , _, Var coi, gramnbr)              -> [ref; Var subject ; Var "KAMOULOX"; Var coi]
+        | PredicateDiTransitive(  ref ,verb,_,  _ , Var cod, _, gramnbr)                        -> [ref; Var "KAMOULOX" ; Var cod; Var "KAMOULOX"]
+        | PredicateDiTransitive(  ref ,verb,_,  _ , _, _, gramnbr)                              -> [ref; Var "KAMOULOX" ; Var "KAMOULOX"; Var "KAMOULOX"]
+        
+        | PredicateIntransitive(  ref , verb,_, Var subject, gramnbr)                           -> [ref; Var subject]
+        | PredicateIntransitive(  ref , verb,_, _, gramnbr)                                     -> [ref; Var "KAMOULOX"]
+        | Property1Ary (ref,  adjective, degree)                                                -> [ref]
+        | Property2Ary (ref,  adjective,  degree, Var ref2)                                     -> [ref; Var ref2]
+        | Property2Ary (ref,  adjective,  degree, ref2)                                         -> [ref; ref2]
+        
+        | Property3Ary (ref,  adjective,  Var ref2,  degree,  comptarget, Var ref3)             -> [ref; Var ref2; Var ref3]
+        | Property3Ary (ref,  adjective,   ref2,  degree,  comptarget, Var ref3)                -> [ref; Var ref3]
+        | Property3Ary (ref,  adjective,  Var ref2,  degree,  comptarget,  ref3)                -> [ref; Var ref2]
+        | Property3Ary (ref,  adjective,  ref2,  degree,  comptarget,  ref3)                    -> [ref]
+        
+        
+        
+        | Relation( ref1, Var ref2)                                                             -> [ref1; Var ref2 ]
+        | Relation( ref1,  ref2)                                                                -> [ref1]        
+        | Modifier_Adv(  ref, adverb,  degree)                                                  -> [ref]
+        | Modifier_pp ( ref1,  preposition, Var ref2)                                           -> [ref1; Var ref2]
+        | HasPart( groupref, Var memberref)                                                     -> [groupref; Var memberref]
+        | Query( ref,  questionWord)                                                            -> [ref]
+        | Operator2 (op, b, c)                                                                  -> [] (*TODO : gérer ces cas*)
+        | Operator1 (op, b)                                                                     -> []
+        | String a                                                                              -> []
+        | Named  a                                                                              -> []
+        | SubDrs(a, dr)                                                                         -> [Var a]
+        | Rien                                                                                  -> [] ;;
+
+
+let isVar refv atom =
+                match atom with
+                | Object( ref,  name,  countable,  unittype,  op, count,_,x,y)                          -> ref = refv
+                | PredicateTransitive( ref, verb, _,  Var subject , Var cod, gramnbr )                  -> ref = refv
+                | PredicateDiTransitive(  ref ,verb,_,  Var subject , Var cod, Var coi, gramnbr)        -> ref = refv
+                | PredicateIntransitive(  ref , verb,_, Var subject, gramnbr)                           -> ref = refv
+                | Property1Ary (ref,  adjective, degree)                                                -> ref = refv
+                | Property2Ary (ref,  adjective,  degree, Var ref2)                                     -> ref = refv
+                | Property3Ary (ref,  adjective,  Var ref2,  degree,  comptarget, Var ref3)             -> ref = refv
+                | Relation( ref1, Var ref2)                                                             -> ref1 = refv
+                | Modifier_Adv(  ref, adverb,  degree)                                                  -> ref = refv
+                | Modifier_pp ( ref1,  preposition, Var ref2)                                           -> ref1 = refv
+                | HasPart( groupref, Var memberref)                                                     -> groupref = refv
+                | Query( ref,  questionWord)                                                            -> ref = refv
+                | _                                                                                     -> false;;
+
+
+let removeVarRefInList removeOnlyAlterateur refvp l =
+        let removeAlt e = ( is_alterateur e) || (not removeOnlyAlterateur) in
+        L.filter (fun e -> not(isVar refvp e) && removeAlt e) l;;
+
+
+let removeElementAccordinfToVar l el =
+        let var = getRefAndParams el |> L.hd in (*Attention....*)
+        removeVarRefInList false var l
+
+
+
+let findRef refvp l =
+        try Some (L.find (isVar refvp) l)
+        with Not_found -> None
+
+
+let replaceBy atom byElem onVar =
+        match atom with
+        | Object( ref,  name,  countable,  unittype,  op, count, l ,x,y)                          -> Object( ref,  name,  countable,  unittype,  op, count, byElem::l ,x,y)
+        | PredicateTransitive( ref, verb, l,   subject ,  cod, gramnbr ) when subject = onVar     -> PredicateTransitive( ref, verb, l,  SubAtom(byElem) ,  cod, gramnbr )
+        | PredicateTransitive( ref, verb, l,   subject , cod, gramnbr ) when cod = onVar          -> PredicateTransitive( ref, verb, l,   subject , SubAtom(byElem), gramnbr )
+
+        | PredicateDiTransitive( ref ,verb,l,  subject , cod, coi, gramnbr) when subject = onVar  -> PredicateDiTransitive(  ref ,verb,l, SubAtom(byElem) ,  cod,  coi, gramnbr)
+        | PredicateDiTransitive( ref ,verb,l,   subject ,  cod,  coi, gramnbr) when cod = onVar   -> PredicateDiTransitive(  ref ,verb,l,   subject , SubAtom(byElem),  coi, gramnbr)
+        | PredicateDiTransitive( ref ,verb,l,   subject ,  cod,  coi, gramnbr) when coi = onVar   -> PredicateDiTransitive(  ref ,verb,l,  subject , cod, SubAtom(byElem), gramnbr)
+        
+        | PredicateIntransitive(  ref , verb,l, subject, gramnbr) when   subject = onVar          ->  PredicateIntransitive(  ref , verb,l, SubAtom(byElem), gramnbr)
+        | Relation( ref1, ref2)          when ref1 = onVar                                        -> Relation( SubAtom(byElem), ref2)
+        | Relation( ref1, ref2)          when ref2 = onVar                                        -> Relation( ref1, SubAtom(byElem))
+        | Modifier_pp ( ref1,  preposition,  ref2)   when ref2 = onVar                            -> Modifier_pp ( ref1,  preposition,  SubAtom(byElem))
+        (*| HasPart( groupref, Var memberref)                                                       -> groupref = refv*)
+        | Query( ref,  questionWord) when ref = onVar                                             -> Query( SubAtom(byElem),  questionWord)
+        | e                                                                                       -> e;;
+
+
+let sameVarRef atom1 atom2 =
+        let a = getRefAndParams atom1 in
+        let b = getRefAndParams atom2 in
+        if L.length a > 0 && L.length b > 0 then L.hd a = L.hd b else false
+
+let sameParam1Ref atom1 atom2 =
+        let a = getRefAndParams atom1 in
+        let b = getRefAndParams atom2 in
+        if L.length a > 0 && L.length b > 1 then L.hd a = L.at b 1 else false
+
+let sameParam2Ref atom1 atom2 =
+        let a = getRefAndParams atom1 in
+        let b = getRefAndParams atom2 in
+        if L.length a > 0 && L.length b > 2 then L.hd a = L.at b 2 else false
+
+let sameParam3Ref atom1 atom2 =
+        let a = getRefAndParams atom1 in
+        let b = getRefAndParams atom2 in
+        if L.length a > 0 && L.length b > 3 then L.hd a = L.at b 3 else false
+
+(*Return sorted couples of term of same var from the list
+ * testNoParam smallest score doens't have a param*)        
+let getCouples  fctestEquiv testNoParam l =
+        let lElemScore = L.map (fun e -> let point, terme = termScore e in e,point, terme) l in
+        let couples = comb 2 lElemScore |> L.map (fun l -> L.hd l, L.at l 1) |> L.filter (fun (a,b) -> let r1,s1,p1 = a in
+                                                                                           let r2,s2,p2 = b in
+                                                                                           r1 |> fctestEquiv r2  && (testNoParam || (if s1 > s2 then p2 = 0 else p1 = 0))  && a != b
+                                                                                        )
+                                        |> L.map (fun ((a,p1,t1),(b,p2,t2)) -> if p1 > p2 then ((b,p2,t2),(a,p1,t1)) else ((a,p1,t1),(b,p2,t2)) ) in                                                                              
+        couples
+
+
+
+(*let rec treefy_drs_pass1 drs =
+        let _ = makeHash h drs in
+        match drs with
+        | FullDRS (a,b) -> FullDRS( a,  pass1 b )*)
+
+let rule1 atom1 atom2 =
+        match is_Property1 atom1, atom2 with
+        | true, Object( ref',  name,  countable,  unittype,  op, count, lst, x, y) -> Object( ref',  name,  countable,  unittype,  op, count, atom1::lst, x, y)
+        | _ -> atom2
+
+let rule2 atom1 atom2 =
+        match is_Modifier_Adv atom1, atom2 with
+        | true, PredicateTransitive( ref', verb, l,   subject ,  cod, gramnbr )    -> PredicateTransitive( ref', verb, atom1::l,   subject ,  cod, gramnbr )
+        | true, PredicateDiTransitive( ref' ,verb,l,  subject , cod, coi, gramnbr) -> PredicateDiTransitive( ref' ,verb, atom1::l,  subject , cod, coi, gramnbr)
+        | true, PredicateIntransitive(  ref' , verb, l, subject, gramnbr)          -> PredicateIntransitive(  ref' , verb, atom1::l, subject, gramnbr)
+        | _ -> atom2
+
+let rule3 atom1 atom2 =
+        match atom1, atom2 with
+        | Property2Ary (ref,  adjective, degree, ref2), Object( ref',  name,  countable,  unittype,  op, count, lst, x, y) ->
+                       Property2Ary (ref,  adjective, degree, SubAtom( Object( ref',  name,  countable,  unittype,  op, count, lst, x, y)))
+        | _ -> atom2
+
+let rule4 atom1 atom2 =
+          match  atom1, atom2 with
+        | Modifier_pp(  ref, adverb,_) ,  Object( ref',  name,  countable,  unittype,  op, count, lst, x, y)   -> Modifier_pp(  ref, adverb, SubAtom( atom1))
+        | _ -> atom1
+
+let rule5 atom1 atom2 =
+        match is_Property2 atom1, atom2 with
+        | true, PredicateTransitive( ref', verb, l,   subject ,  cod, gramnbr )    -> PredicateTransitive( ref', verb, atom1::l,   subject ,  cod, gramnbr )
+        | true, PredicateDiTransitive( ref' ,verb,l,  subject , cod, coi, gramnbr) -> PredicateDiTransitive( ref' ,verb, atom1::l,  subject , cod, coi, gramnbr)
+        | true, PredicateIntransitive(  ref' , verb, l, subject, gramnbr)          -> PredicateIntransitive(  ref' , verb, atom1::l, subject, gramnbr)
+        | _ -> atom2
+
+let rule7 atom1 atom2 =
+        match is_Property2 atom1, atom2 with
+        | true, PredicateTransitive( ref', verb, l,   subject ,  cod, gramnbr )    -> PredicateTransitive( ref', verb, l,   subject ,  SubAtom(atom1), gramnbr )
+        | true, PredicateDiTransitive( ref' ,verb,l,  subject , cod, coi, gramnbr) -> PredicateDiTransitive( ref' ,verb, l,  subject , SubAtom(atom1), coi, gramnbr)
+        | _ -> atom2
+
+let rule8 atom1 atom2 =
+        match is_Object atom1, atom2 with
+        | true, PredicateTransitive( ref', verb, l,   subject ,  cod, gramnbr )    -> PredicateTransitive( ref', verb, l,   SubAtom(atom1) ,  cod, gramnbr )
+        | true, PredicateDiTransitive( ref' ,verb,l,  subject , cod, coi, gramnbr) -> PredicateDiTransitive( ref' ,verb, l, SubAtom(atom1)  , cod, coi, gramnbr)
+        | true, PredicateIntransitive(  ref' , verb, l, subject, gramnbr)          -> PredicateIntransitive(  ref' , verb, l, SubAtom(atom1) , gramnbr)
+        | _ -> atom2
+
+
+let rule9 atom1 atom2 =
+        match is_Object atom1, atom2 with
+        | true, PredicateTransitive( ref', verb, l,   subject ,  cod, gramnbr )    -> PredicateTransitive( ref', verb, l, subject,  SubAtom(atom1) , gramnbr )
+        | true, PredicateDiTransitive( ref' ,verb,l,  subject , cod, coi, gramnbr) -> PredicateDiTransitive( ref' ,verb, l, subject, SubAtom(atom1), coi, gramnbr)
+        | _ -> atom2
+
+let rule10 atom1 atom2 =
+        match is_Object atom1, atom2 with
+        | true, PredicateDiTransitive( ref' ,verb,l,  subject , cod, coi, gramnbr) -> PredicateDiTransitive( ref' ,verb, l, subject, cod, SubAtom(atom1), gramnbr)
+        | _ -> atom2
+        
+
+let couplesRegle1 fctest1 fctest2 couples = L.filter (fun ((a,_,_),(b,_,_)) -> fctest1 a && fctest2 b ) couples
+let replaced fcReplace couplesRegle1v =  L.map ( fun ((a,_,_),(b,_,_)) -> fcReplace a b) couplesRegle1v
+
+let rec reglex l fctest1 fctest2 fcReplace fcTestEquiv noNeedParam =
+        let couples = getCouples fcTestEquiv noNeedParam l in
+        let couplesRegle1v = couplesRegle1 fctest1 fctest2 couples in (* Couples sorted by points, so always in this order*)
+        let replacedv =  replaced fcReplace couplesRegle1v in
+        (*Là, on supprime les remplacés dans l, donc on cherche leur variable*)
+        let lok = L.fold_left removeElementAccordinfToVar l replacedv in
+        replacedv, replacedv@lok
+
+
+let regle1 l = reglex l is_Property1 is_Object rule1 sameVarRef false
+let regle2 l = reglex l is_Modifier_Adv is_Predicate rule2 sameVarRef false
+let regle3 l = reglex l is_Property2 is_Object rule3 sameParam1Ref true
+let regle4 l = reglex l is_Modifier_pp is_Object rule4 sameParam1Ref true
+let regle5 l = reglex l is_Property2 is_Predicate rule5 sameVarRef true
+let regle6 l = reglex l is_Property2 is_Predicate rule5 sameParam1Ref true
+let regle7 l = reglex l is_Property2 is_Predicate rule7 sameParam2Ref true
+let regle8 l = reglex l is_Object is_Predicate rule8 sameParam1Ref true
+let regle9 l = reglex l is_Object is_Predicate rule9 sameParam2Ref true
+let regle10 l = reglex l is_Object is_Predicate rule10 sameParam3Ref true
+
+
+
+
+        (*let open BatFloat.Infix in
+        let scoreCouple a b  = let s1 = a |> float_of_int in let s2 = b |> float_of_int in s1*s2 |> sqrt in
+        let coupleScore = L.map (fun ( (e1,s1,p1), (e2,s2,p2) ) -> (e1,e2, s1,s2, scoreCouple s1 s2 )) couples in
+        let getMinMax   = L.min_max ~cmp:(fun (e1,e2,_,_,s1) -> fun (e1',e2',_,_,s2) ->  Pervasives.compare s1  s2) in
+        let plusPetit,_ = getMinMax coupleScore  in
+        let alter, obj  = let aa,aa',s1,s2,_ = plusPetit in [aa,s1;aa',s2] |> L.min_max ~cmp:(fun (a,b) -> fun (a',b') -> Pervasives.compare s1 s2 ) in
+        let replaced    = replaceBy (fst obj) (fst alter) (Var "KAMOULOX") in
+        let varDeleted  = getRefAndParams (fst alter) |> L.hd in
+        let newL        = (removeVarRefInList true) varDeleted l in
+        alter, obj, replaced, varDeleted, newL*)
+
+        (*TODO : replace =>
+         * on met dans le terme de plus grand score le plus petit.
+         * Il faut le faire dans l'ordre donc on cherche les couples de scores les plus bas
+         * Résoudre les conflits du type
+         * ((Obj,5,0), (Prop,1,0)) ; ((Relat,6,1),(Obj,5,0))   *)
+       (* in
+        let petitDansGrand petit grand =
+                match grand with
+                | Object( ref,  name,  countable,  unittype,  op, count, lst, x, y)                     -> Object( ref,  name,  countable,  unittype,  op, count, petit::lst, x, y)
+                | PredicateTransitive( ref, verb, _,  Var subject , Var cod, gramnbr )                  -> ref = refv
+                | PredicateDiTransitive(  ref ,verb,_,  Var subject , Var cod, Var coi, gramnbr)        -> ref = refv
+                | PredicateIntransitive(  ref , verb,_, Var subject, gramnbr)                           -> ref = refv
+                | Property1Ary (ref,  adjective, degree)                                                -> ref = refv
+                | Property2Ary (ref,  adjective,  degree, Var ref2)                                     -> ref = refv
+                | Property3Ary (ref,  adjective,  Var ref2,  degree,  comptarget, Var ref3)             -> ref = refv
+                | Relation( ref1, Var ref2)                                                             -> ref1 = refv
+                | Modifier_Adv(  ref, adverb,  degree)                                                  -> ref = refv
+                | Modifier_pp ( ref1,  preposition, Var ref2)                                           -> ref1 = refv
+                | HasPart( groupref, Var memberref)                                                     -> groupref = refv
+                | Query( ref,  questionWord)                                                            -> ref = refv
+                | _                                                                                     -> false*)
+
+
 (*
-let rec treefy_drs_pass2 drs =
+
+
+ *
+ * Règle 1 : un Property1Ary se rapporte toujours à un objet ou predicate (?). Donc, Property1Ary(X), Object(X)-> Objet(Property1Ary))
+ * Règle 2 : Un param1 ou param2 de Property2Ary et Property3Ary sont souvent des objets, donc Property2Ary(ref,X), Objet(X) -> Property2Ary(Ref,Objet)
+ *
+ * Algo : on cherche les altérateurs n'ayant pas de paramètres. On cherche, ensuite un objet ayant la même ref. Property1Ary(X), Object(X)-> Objet(Property1Ary))
+ *
+ * TODO Chaque terme à un nombre de point, qui permet de calculer des priorité.
+ * I. On cherche des couples de terme ayant la même ref, et on intègre celui qui a le moins de points dans celui qui en a le plus
+ * Si on a épuisé les candidats, on cherche les termes unique ayant un param qui est une ref dans la liste, on remplace
+ *  Là, c'est le + petit score qui gagne : si on a 2 candidats, c'est le + petit score qui l'emporte
+ *  A la fin on se retrouve avec les derniers terme existants
+ *  TODO : Faire une fonction donnant un nombre de points pour chaque terme.
+ *         Faire une fonction éliminant un terme à partir de sa variable
+ *         Faire une première fonction qui cherche les couples de termes ayant les mêmes ref.
+          
+[Object (Var "J6", Nom "method", Countable, Na, Eq, Number 1, [], 5, 4);
+                        Property1Ary (Var "J6", Adj "formal", Pos);
+                        Object (Var "K6", Nom "language", Countable, Na, Eq, Number 1, [], 5, 9);
+                        Property1Ary (Var "K6", Adj "natural", Pos);
+                        Property2Ary (Var "L6", Adj "expressed-in", Pos, Var "K6");
+                        PredicateTransitive (Var "M6", Verbe "be", [], Var "J6", Var "L6", Singular)]
+
+Pass 1 :
+         [Object (Var "J6", Nom "method", Countable, Na, Eq, Number 1, 5, 4);
+                        Property1Ary (Var "J6", Adj "formal", Pos);
+                        Object (Var "K6", Nom "language", Countable, Na, Eq, Number 1, [Property1Ary (Var "K6", Adj "natural", Pos)], 5, 9);
+                        Property2Ary (Var "L6", Adj "expressed-in", Pos, Var "K6");
+                        PredicateTransitive (Var "M6", Verbe "be", Var "J6", Var "L6", Singular)]
+Pass 1 :
+        [Object (Var "J6", Nom "method", Countable, Na, Eq, Number 1, [Property1Ary (Var "J6", Adj "formal", Pos)], 5, 4);
+                        Object (Var "K6", Nom "language", Countable, Na, Eq, Number 1, [Property1Ary (Var "K6", Adj "natural", Pos)], 5, 9);
+                        Property2Ary (Var "L6", Adj "expressed-in", Pos, Var "K6");
+                        PredicateTransitive (Var "M6", Verbe "be", Var "J6", Var "L6", Singular)]
+Pass 1 :
+        [Object (Var "J6", Nom "method", Countable, Na, Eq, Number 1, [Property1Ary (Var "J6", Adj "formal", Pos)], 5, 4);
+                        Property2Ary (Var "L6", Adj "expressed-in", Pos, SubAtom( Object (Var "K6", Nom "language", Countable, Na, Eq, Number 1, [Property1Ary (Var "K6", Adj "natural", Pos)], 5, 9)) );
+                        PredicateTransitive (Var "M6", Verbe "be", Var "J6", Var "L6", Singular)]
+
+Pass 1 :
+        [
+PredicateTransitive (Var "M6", Verbe "be", [],
+ SubAtom
+  (Object (Var "J6", Nom "method", Countable, Na, Eq, Number 1,
+    [Property1Ary (Var "J6", Adj "formal", Pos)], 5, 4)),
+ SubAtom
+  (Property2Ary (Var "L6", Adj "expressed-in", Pos,
+    SubAtom
+     (Object (Var "K6", Nom "language", Countable, Na, Eq, Number 1,
+       [Property1Ary (Var "K6", Adj "natural", Pos)], 5, 9)))),
+ Singular)
+           ]
+
+---------------
+
+[                       Object (Var "D11", Nom "error-message", Countable, Na, Eq, Number 1, [],46,12);
+                        Relation (Var "F11", Var "B11");
+                        Object (Var "F11", Nom "location", Countable, Na, Eq, Number 1,[], 46, 16);
+                        PredicateTransitive (Var "E11", Verbe "point-to", [], Var "D11", Var "F11",Singular);
+                        Relation (Var "H11", Var "B11");
+                        Property1Ary (Var "H11", Adj "possible", Pos);
+                        Object (Var "H11", Nom "cause", Countable, Na, Eq, Number 1,[], 46, 25);
+                        PredicateTransitive (Var "G11", Verbe "describe", [], Var "D11", Var "H11",Singular);
+                        PredicateTransitive (Var "I11", Verbe "generate",[],SubAtom (Named "Attempto-Parsing-Engine"), Var "D11", Singular)]
+
+
+Pass :                 [Object (Var "D11", Nom "error-message", Countable, Na, Eq, Number 1, 46,12);
+                        Relation (Var "F11", Var "B11");
+                        Object (Var "F11", Nom "location", Countable, Na, Eq, Number 1, 46, 16);
+                        PredicateTransitive (Var "E11", Verbe "point-to", Var "D11", Var "F11",Singular);
+                        Relation (Var "H11", Var "B11");
+                        ;
+                        Object (Var "H11", Nom "cause", Countable, Na, Eq, Number 1,[Property1Ary (Var "H11", Adj "possible", Pos)] 46, 25);
+                        PredicateTransitive (Var "G11", Verbe "describe", Var "D11", Var "H11",Singular);
+                        PredicateTransitive (Var "I11", Verbe "generate",SubAtom (Named "Attempto-Parsing-Engine"), Var "D11", Singular)]
+
+
+                        
+TODO : penser à supprimer les termes : on les déplacent
+
+ *
+ * let rec treefy_drs_pass2 drs =
         match drs with
         | FullDRS (a,b) -> FullDRSTree( L.map secondpass b )
 and varTree_of_var = function
@@ -542,32 +909,34 @@ and varTree_of_var = function
         | SubAtom a -> SubAtomt (treefyAtom a)
         | List a -> Listt a
 and secondpass atom =
-        (*TODO : construire le hpass1, qui recense les altérateurs constitués lors de la 1ère passe*)
+        TODO : construire le hpass1, qui recense les altérateurs constitués lors de la 1ère passe
         let rec findInHOrId ref hasToBeAlterateur =
-                (* On renvoi vrai si c'est un altérateur  ou que hasToBeAlterateur est faux (car osef) : not is_alterateur or hasToBeAlterateur*)
+                 On renvoi vrai si c'est un altérateur  ou que hasToBeAlterateur est faux (car osef) : not is_alterateur or hasToBeAlterateur
                 let exist = H.mem hpass1 ref in
                 let is_alterateur_ok =  (exist && H.find hpass1 ref |> is_alterateur) || (not hasToBeAlterateur) in
-                if exist then (*Mettre cette fonction en indépendant et rec. C'est plus une fonction de conversion*)
+                if exist then Mettre cette fonction en indépendant et rec. C'est plus une fonction de conversion
                         match H.find hpass1 ref with
-                        (*Attention, on doit avoir un SubAtom dans le ref2*)
-                        | Property2Ary(ref,  adjective,  degree, SubAtom( s2) )                           -> Property2AryT(ref,  adjective,  degree,  findInHOrId s2 hasToBeAlterateur )
+                        Attention, on doit avoir un SubAtom dans le ref2
+                        | Property2Ary(ref,  adjective,  degree, SubAtom( s2) )                           -> Property2Ary(ref,  adjective,  degree,  findInHOrId s2 hasToBeAlterateur )
                         | Property3Ary (ref, adjective, SubAtom( s2),  degree, comptarget, SubAtom( s3) ) -> Property3AryT(ref, adjective, findInHOrId s2 hasToBeAlterateur,  degree, comptarget, findInHOrId s3 hasToBeAlterateur )
                         | Relation( SubAtom s1, SubAtom s2)                                               -> RelationT( findInHOrId s1 hasToBeAlterateur, findInHOrId s2 hasToBeAlterateur)
                         | Modifier_pp(ref1, preposition, SubAtom s1)                                      -> Modifier_ppT(ref1, preposition, findInHOrId s1 hasToBeAlterateur)
                         | _                                                                               -> failwith "cas findInHOrId non géré"
-                else RienT (*FIXME: Provisoir*)
+                else RienT FIXME: Provisoir
         in
 
 
                 match atom with
                 | Object(  ref,  name,  countable,  unittype,  op, count,[], x,y)         -> if H.mem h ref && H.find h ref |> is_alterateur then 
                                                                                              ObjectT ( ref,  name,  countable,  unittype,  op, count, H.find h ref, x,y)
-                                                                                          else ObjectT(  ref,  name,  countable,  unittype,  op, count,RienT, x,y)
-(* On en est là : 
+                                                                                         else ObjectT(  ref,  name,  countable,  unittype,  op, count,RienT, x,y)
+    
+     On en est là : 
         * Là, il faut faire sn sorte de gérer tous les cas, qu'on ait une ou plusieurs ref dans le H et mettre qq chose en fonction, et ensuite convertir !!!
         * Appliquer ensuite la recette chez les autres
         * ===> Faire une fonction findInHOrId : Hash -> atom -> atomTree et qui rend le atomTree correspondant à la var si elle existe dans le Hash, et rend la conversion du atom courant sinon
-        * Ensuite utiliser le compilo pour gérer*)
+        * Ensuite utiliser le compilo pour gérer
+    
                 | PredicateTransitive(  ref, verb, [],  subject , cod, gramnbr )         -> if H.mem h ref && H.find h ref |> is_alterateur then
                                                                                              PredicateTransitiveT(ref , subject, verb, H.find h ref, cod, gramnbr)
                                                                                           else if H.mem h subject  then
@@ -583,11 +952,11 @@ and secondpass atom =
                                                                                            else if H.mem h coi && H.find h coi |> is_alterateur then
                                                                                              PredicateDiTransitiveT(ref , subject, verb, cod, H.find h coi, gramnbr)
                                                                                           else PredicateDiTransitiveT( ref ,subject, verb, RienT,  cod,  coi, gramnbr) 
-                (* Si le sujet est un alterateur*)
+                 Si le sujet est un alterateur
                 | PredicateIntransitive(  ref , verb, [], subject, gramnbr)               -> if H.mem h subject && H.find h subject |> is_alterateur then
                                                                                              PredicateIntransitiveT(ref , verb, H.find h subject, subject, gramnbr)
                                                                                           else PredicateIntransitiveT(  ref ,subject, verb, RienT, gramnbr)
-               (* | Property1Ary (ref,  adjective, degree)                              -> H.add hash ref self; hash
+                | Property1Ary (ref,  adjective, degree)                              -> H.add hash ref self; hash
                 | Property2Ary (ref,  adjective,  degree, ref2)                       -> H.add hash ref self; hash
                 | Property3Ary (ref,  adjective,  ref2,  degree,  comptarget, ref3)   -> H.add hash ref self; hash
                 | Relation( ref1,  ref2)                                              -> H.add hash ref1 self; hash
@@ -599,12 +968,13 @@ and secondpass atom =
                 | Operator1 (op, b)                                                   -> makeHash hash b
                 | String a                                                            -> hash 
                 | Named  a                                                            -> hash
-                | Rien                                                                -> hash*)
+                | Rien                                                                -> hash
+                
 
 
-*)
 
-(*
+
+
  * Principes
  * prop1ary(ref) : on le met dans ref en tant que modificateur | Algo: Si on tombe sur un objet(ref,...), on vérifie qu'on a pas un prop1ary(ref) dans le H, si oui, on le met dans l'objet
  * prop2ary(ref,x) : on remplace la variable 2 par son terme, et on le met dans ref en tant que modificateur | Algo : Si on tombe sur predicate/objet, on vérifie qu'on ait pas un prop2ary(ref,x) tel que pred/objet(...ref...). Dans le
@@ -621,96 +991,5 @@ and secondpass atom =
  * II. Faire une première passe où on remplace les paramètres second de terme secondaire comme propXary, relation, modifier_yy par leur objet. A chaque fois, faire un hash ref -> terme construit
  * III. 
  *
- * *)
-
-(*
-
-
-
-
-let rec treefyElem (hash : (var, atom) H.t ) expre =
-        let convertVar = function
-                | SubAtom atom  -> atom
-                | e             -> VarElem e in 
-        let convertVarElem = function
-                | Num a         -> Numt a
-                | SubAtom a     -> SubAtomt(treefyElem hash a)
-                | ConstStr c    -> ConstStrt c
-                | List l        -> Listt l
-                | Var v         -> Vart v in
-        let hfind elem = try H.find hash elem with Not_found -> convertVar elem in
-        match expre with
-        | Object(  ref,  name,  countable,  unittype,  op, count,x,y)        -> ObjectT (  ref,  name,  countable,  unittype,  op, count,x,y)
-        | VarElem e                                                          -> VarElemt( convertVarElem e)
-        | PredicateTransitive( ref, verb,   subject , cod, gramnbr )         -> let subj  = hfind subject in
-                                                                                let cmpod = hfind cod   in
-                                                                                PredicateTransitiveT (ref, treefyElem hash subj, verb, treefyElem hash cmpod, gramnbr) 
-
-        | PredicateDiTransitive(  ref ,verb,  subject ,  cod,  coi, gramnbr) -> let subj  = hfind subject in
-                                                                                let cmpod = hfind cod   in
-                                                                                let cmpoi = hfind coi   in
-                                                                                PredicateDiTransitiveT (ref, treefyElem hash subj, verb,  treefyElem hash cmpod, treefyElem hash cmpoi, gramnbr)
-
-        | PredicateIntransitive(  ref , verb, subject, gramnbr)              -> let subj  = hfind subject in PredicateIntransitiveT (ref, treefyElem hash subj, verb, gramnbr)
-        | Operator2 (op, FullDRS(_,b), FullDRS(_,c))                         -> Operator2T (op, FullDRSTree(b |> L.map (treefyElem hash)) , FullDRSTree(c |> L.map (treefyElem hash)))
-        | Operator1 (op, FullDRS(_,b))                                       -> Operator1T (op,  FullDRSTree(b |> L.map (treefyElem hash)))
-        | HasPart(a,b)                                                       -> let mero = hfind a in let mero2 = hfind b in HasPartT ( treefyElem hash mero, treefyElem hash mero2)
-        | Relation(a,b)                                                      -> let mero = hfind a in let mero2 = hfind b in RelationT ( treefyElem hash mero, treefyElem hash mero2)      
-        | String a                                                           -> StringT a 
-        | Named  a                                                           -> NamedT a
-        | Rien                                                               -> RienT 
-        | Modifier_Adv(  ref, adverb,  degree)                               -> let a = hfind ref in Modifier_AdvT(  treefyElem hash a, adverb,  degree)
-        | Modifier_pp ( ref1,  preposition, ref2)                            -> let a = hfind ref1 in let b = hfind ref2 in   Modifier_ppT( treefyElem hash a,  preposition, treefyElem hash b)
-        | Query( ref, pint)                                                  -> let a = hfind ref in QueryT(treefyElem hash a, pint)
-        | Property1Ary (ref,  adjective, degree)                             -> Property1AryT(ref, adjective, degree)
-        | Property2Ary (ref,  adjective,  degree, ref2)                      -> let b = hfind ref2 in
-                                                                                 Property2AryT(ref, adjective, degree, treefyElem hash b)
-        | Property3Ary (ref,  adjective,  ref2,  degree,  comptarget, ref3)  -> let b = hfind ref2 in
-                                                                                let c = hfind ref3 in
-                                                                                Property3AryT(ref, adjective, treefyElem hash b, degree, comptarget, treefyElem hash c)
-and cleanDRSTree domain f =
-        let findElem (Var d) el =
-                match el with
-                | ObjectT( Var s, _, _, _, _, _, _, _ )           -> s = d
-                | PredicateIntransitiveT ( Var s, _, _, _ )       -> s = d
-                | PredicateTransitiveT   ( Var s, _, _, _, _ )    -> s = d
-                | PredicateDiTransitiveT ( Var s, _, _, _, _, _ ) -> s = d
-                | _                                               -> false in
-        match f with
-        | FullDRSTree l -> FullDRSTree ( L.filter (fun o -> not (L.exists (fun b -> findElem b o) domain) ) l )
-
-and recCleanDRS f =
-          let rec findElem (Var d) el =
-                match el with
-                | Object( Var s, _, _, _, _, _, _, _ )           -> s = d
-                | PredicateIntransitive ( Var s, _, _, _ )       -> s = d
-                | PredicateTransitive   ( Var s, _, _, _, _ )    -> s = d
-                | PredicateDiTransitive ( Var s, _, _, _, _, _ ) -> s = d
-                | _                                               -> false in
-        let rec cleanElem e =
-                match e with
-                | Operator2(op, d1, d2) -> Operator2(op, recCleanDRS d1, recCleanDRS d2)
-                | Operator1(op, d)      -> Operator1(op, recCleanDRS d)
-                | _ -> e  in
-        match f with
-        | FullDRS(domain,l) -> FullDRS ( [] , L.map cleanElem l |> L.filter (fun o -> not (L.exists (fun b -> findElem b o) domain) ) )
-
-(*
-and cleanDRS f =
-        let rec findElem (Var d) el =
-                match el with
-                | Object( Var s, _, _, _, _, _, _, _ )           -> s = d
-                | PredicateIntransitive ( Var s, _, _, _ )       -> s = d
-                | PredicateTransitive   ( Var s, _, _, _, _ )    -> s = d
-                | PredicateDiTransitive ( Var s, _, _, _, _, _ ) -> s = d
-                | _                                               -> false in
-        match f with
-        | FullDRS(domain,l) -> FullDRS ( [] , L.filter (fun o -> not (L.exists (fun b -> findElem b o) domain) ) l )
+ * 
 *)
-and treefy_drs_pass hash drs =
-        let drs2 = recCleanDRS drs in
-        match drs2 with
-        | FullDRS (a,b) -> FullDRSTree( L.map (treefyElem hash) b ) 
-
-*)
-
