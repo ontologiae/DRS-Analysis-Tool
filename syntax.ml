@@ -685,26 +685,6 @@ let rule10 atom1 atom2 =
 let couplesRegle1 fctest1 fctest2 couples = L.filter (fun ((a,_,_),(b,_,_)) -> fctest1 a && fctest2 b ) couples
 let replaced fcReplace couplesRegle1v =  L.map ( fun ((a,_,_),(b,_,_)) -> fcReplace a b) couplesRegle1v
 
-let rec reglex l fctest1 fctest2 fcReplace fcTestEquiv noNeedParam =
-        let couples = getCouples fcTestEquiv noNeedParam l in
-        let couplesRegle1v = couplesRegle1 fctest1 fctest2 couples in (* Couples sorted by points, so always in this order*)
-        let replacedv =  replaced fcReplace couplesRegle1v in
-        (*Là, on supprime les remplacés dans l, donc on cherche leur variable*)
-        let lok = L.fold_left removeElementAccordinfToVar l replacedv in
-        replacedv, replacedv@lok
-
-
-let regle1 l = reglex l is_Property1 is_Object rule1 sameVarRef false
-let regle2 l = reglex l is_Modifier_Adv is_Predicate rule2 sameVarRef false
-let regle3 l = reglex l is_Property2 is_Object rule3 sameParam1Ref true
-let regle4 l = reglex l is_Modifier_pp is_Object rule4 sameParam1Ref true
-let regle5 l = reglex l is_Property2 is_Predicate rule5 sameVarRef true
-let regle6 l = reglex l is_Property2 is_Predicate rule5 sameParam1Ref true
-let regle7 l = reglex l is_Property2 is_Predicate rule7 sameParam2Ref true
-let regle8 l = reglex l is_Object is_Predicate rule8 sameParam1Ref true
-let regle9 l = reglex l is_Object is_Predicate rule9 sameParam2Ref true
-let regle10 l = reglex l is_Object is_Predicate rule10 sameParam3Ref true
-
 
 
 let getVarsAccordingToRule atom rul =
@@ -760,12 +740,12 @@ let getVarsAccordingToRule atom rul =
 
 
 
-let resolv2Terme atomDest atomSrc rul1 rul2 =
-        let varsAtom1 = getVarsAccordingToRule atomDest rul1 in
-        let varsAtom2 = getVarsAccordingToRule atomSrc rul2 in
+let resolv2Terme atomDest atomSrc rulDest rulSrc =
+        let varsAtom1 = getVarsAccordingToRule atomDest rulDest in
+        let varsAtom2 = getVarsAccordingToRule atomSrc rulSrc in
         let varLiees = intersect varsAtom1 varsAtom2 |> L.unique in
         if L.length varLiees > 0 then
-                let defvar, alterateur, param1, param2, param3 = rul2 in
+                let defvar, alterateur, param1, param2, param3 = rulDest in
                 if  L.length varLiees > 1 then Printf.eprintf "Attention !! 2 var Liées %s \n" (L.map stringOfVar varLiees |> S.concat "; ");
                 let varToReplace = L.hd varLiees in (*Normalement il n'y en a qu'une !!!*)
                 let replaceIfVar varlocal =
@@ -788,6 +768,30 @@ let resolv2Terme atomDest atomSrc rul1 rul2 =
                         |      _                                                                ->  atomDest in
                 [termeSubst]
         else [atomDest;atomSrc] ;;
+
+
+
+
+let rec reglex l fctest1 fctest2 fcReplace fcTestEquiv noNeedParam =
+        let couples = getCouples fcTestEquiv noNeedParam l in
+        let couplesRegle1v = couplesRegle1 fctest1 fctest2 couples in (* Couples sorted by points, so always in this order*)
+        let replacedv =  replaced fcReplace couplesRegle1v in
+        (*Là, on supprime les remplacés dans l, donc on cherche leur variable*)
+        let lok = L.fold_left removeElementAccordinfToVar l replacedv in
+        replacedv, replacedv@lok
+
+
+let regle1 l = reglex l is_Property1 is_Object rule1 sameVarRef false
+let regle2 l = reglex l is_Modifier_Adv is_Predicate rule2 sameVarRef false
+let regle3 l = reglex l is_Property2 is_Object rule3 sameParam1Ref true
+let regle4 l = reglex l is_Modifier_pp is_Object rule4 sameParam1Ref true
+let regle5 l = reglex l is_Property2 is_Predicate rule5 sameVarRef true
+let regle6 l = reglex l is_Property2 is_Predicate rule5 sameParam1Ref true
+let regle7 l = reglex l is_Property2 is_Predicate rule7 sameParam2Ref true
+let regle8 l = reglex l is_Object is_Predicate rule8 sameParam1Ref true
+let regle9 l = reglex l is_Object is_Predicate rule9 sameParam2Ref true
+let regle10 l = reglex l is_Object is_Predicate rule10 sameParam3Ref true
+
 
 
 (*TODO fair eune fonction à qui on donne la var à remplacer, l'atomSrc à mettre, la source, et qui renvoi id si c'est la var, et SubAtom sinon*)
