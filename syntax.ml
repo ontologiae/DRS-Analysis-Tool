@@ -1,6 +1,8 @@
 open Batteries
 module L = BatList;;
 module H = BatHashtbl;;
+module O = BatOption;;
+module S = BatString;;
 
 Printexc.record_backtrace true;;
 
@@ -12,6 +14,12 @@ let rec comb m lst =
   | m, x :: xs -> List.map (fun y -> x :: y) (comb (pred m) xs) @
                   comb m xs
 ;;
+
+let rec intersect m = function
+| []                     -> []
+| t::q when List.mem t m -> t :: (intersect (L.remove m t) q)
+| t :: q                 -> intersect m q;;
+
 
 (* This first grammar is just made for the parser *)    
 type
@@ -703,49 +711,87 @@ let getVarsAccordingToRule atom rul =
         let addIfRightPos var  isOktoAdd =
                 if isOktoAdd then Some(var) else None in
         let defvar, alterateur, param1, param2, param3 = rul in
+        let lst =
         match atom with
         | Object( ref,  name,  countable,  unittype,  op, count,_,x,y)                          -> [addIfRightPos ref defvar]
-        | PredicateTransitive( ref, verb, _,  Var subject , Var cod, gramnbr )                  -> [addIfRightPos refdefvar; addIfRightPos (Var subject) param1 ; addIfRightPos (Var cod) param2]
-        (*TODO : continuer le délire*)
-        | PredicateTransitive( ref, verb, _,  _ , Var cod, gramnbr )                            -> [ref; Var "KAMOULOX" ; Var cod]
-        | PredicateTransitive( ref, verb, _,  Var subject , _, gramnbr )                        -> [ref; Var subject ; Var "KAMOULOX"]
-        | PredicateTransitive( ref, verb, _,  _ , _, gramnbr )                                  -> [ref; Var "KAMOULOX" ; Var "KAMOULOX"]
+        | PredicateTransitive( ref, verb, _,  Var subject , Var cod, gramnbr )                  -> [addIfRightPos ref defvar; addIfRightPos (Var subject) param1 ; addIfRightPos (Var cod) param2]
+        | PredicateTransitive( ref, verb, _,  _ , Var cod, gramnbr )                            -> [addIfRightPos ref defvar; addIfRightPos (Var cod) param2]
+        | PredicateTransitive( ref, verb, _,  Var subject , _, gramnbr )                        -> [addIfRightPos ref defvar; addIfRightPos (Var subject) param1]
+        | PredicateTransitive( ref, verb, _,  _ , _, gramnbr )                                  -> [addIfRightPos ref defvar]
 
-        | PredicateDiTransitive(  ref ,verb,_,  Var subject , Var cod, Var coi, gramnbr)        -> [ref; Var subject ; Var cod; Var coi]
-        | PredicateDiTransitive(  ref ,verb,_,  Var subject , Var cod, _, gramnbr)              -> [ref; Var subject ; Var cod; Var "KAMOULOX"]
-        | PredicateDiTransitive(  ref ,verb,_,  Var subject , _, Var coi, gramnbr)              -> [ref; Var subject ; Var "KAMOULOX"; Var coi]
-        | PredicateDiTransitive(  ref ,verb,_,  _ , Var cod, Var coi, gramnbr)                  -> [ref; Var "KAMOULOX" ; Var cod; Var coi]
-        | PredicateDiTransitive(  ref ,verb,_,  _ , _, Var coi, gramnbr)                        -> [ref; Var "KAMOULOX" ; Var "KAMOULOX"; Var coi]
-        | PredicateDiTransitive(  ref ,verb,_,  Var subject , _, Var coi, gramnbr)              -> [ref; Var subject ; Var "KAMOULOX"; Var coi]
-        | PredicateDiTransitive(  ref ,verb,_,  _ , Var cod, _, gramnbr)                        -> [ref; Var "KAMOULOX" ; Var cod; Var "KAMOULOX"]
-        | PredicateDiTransitive(  ref ,verb,_,  _ , _, _, gramnbr)                              -> [ref; Var "KAMOULOX" ; Var "KAMOULOX"; Var "KAMOULOX"]
+        | PredicateDiTransitive(  ref ,verb,_,  Var subject , Var cod, Var coi, gramnbr)        -> [addIfRightPos ref defvar; addIfRightPos (Var subject) param1; addIfRightPos (Var cod) param2; addIfRightPos (Var coi) param3]
+        | PredicateDiTransitive(  ref ,verb,_,  Var subject , Var cod, _, gramnbr)              -> [addIfRightPos ref defvar; addIfRightPos (Var subject) param1; addIfRightPos (Var cod) param2]
+        | PredicateDiTransitive(  ref ,verb,_,  Var subject , _, Var coi, gramnbr)              -> [addIfRightPos ref defvar; addIfRightPos (Var subject) param1; addIfRightPos (Var coi) param3]
+        | PredicateDiTransitive(  ref ,verb,_,  _ , Var cod, Var coi, gramnbr)                  -> [addIfRightPos ref defvar; addIfRightPos (Var cod) param2; addIfRightPos (Var coi) param3]
+        | PredicateDiTransitive(  ref ,verb,_,  _ , _, Var coi, gramnbr)                        -> [addIfRightPos ref defvar; addIfRightPos (Var coi) param3]
+        | PredicateDiTransitive(  ref ,verb,_,  Var subject , _, Var coi, gramnbr)              -> [addIfRightPos ref defvar; addIfRightPos (Var subject) param1; addIfRightPos (Var coi) param3]
+        | PredicateDiTransitive(  ref ,verb,_,  _ , Var cod, _, gramnbr)                        -> [addIfRightPos ref defvar; addIfRightPos (Var cod) param2]
+        | PredicateDiTransitive(  ref ,verb,_,  _ , _, _, gramnbr)                              -> [addIfRightPos ref defvar]
         
-        | PredicateIntransitive(  ref , verb,_, Var subject, gramnbr)                           -> [ref; Var subject]
-        | PredicateIntransitive(  ref , verb,_, _, gramnbr)                                     -> [ref; Var "KAMOULOX"]
-        | Property1Ary (ref,  adjective, degree)                                                -> [ref]
-        | Property2Ary (ref,  adjective,  degree, Var ref2)                                     -> [ref; Var ref2]
-        | Property2Ary (ref,  adjective,  degree, ref2)                                         -> [ref; ref2]
+        | PredicateIntransitive(  ref , verb,_, Var subject, gramnbr)                           -> [addIfRightPos ref defvar; addIfRightPos (Var subject) param1]
+        | PredicateIntransitive(  ref , verb,_, _, gramnbr)                                     -> [addIfRightPos ref defvar]
+        | Property1Ary (ref,  adjective, degree)                                                -> [addIfRightPos ref defvar]
+        | Property2Ary (ref,  adjective,  degree, Var ref2)                                     -> [addIfRightPos ref defvar; addIfRightPos (Var ref2) param1]
+        | Property2Ary (ref,  adjective,  degree, ref2)                                         -> [addIfRightPos ref defvar; addIfRightPos ref2 param1]
         
-        | Property3Ary (ref,  adjective,  Var ref2,  degree,  comptarget, Var ref3)             -> [ref; Var ref2; Var ref3]
-        | Property3Ary (ref,  adjective,   ref2,  degree,  comptarget, Var ref3)                -> [ref; Var ref3]
-        | Property3Ary (ref,  adjective,  Var ref2,  degree,  comptarget,  ref3)                -> [ref; Var ref2]
-        | Property3Ary (ref,  adjective,  ref2,  degree,  comptarget,  ref3)                    -> [ref]
+        | Property3Ary (ref,  adjective,  Var ref2,  degree,  comptarget, Var ref3)             -> [addIfRightPos ref defvar; addIfRightPos (Var ref2) param1;addIfRightPos (Var ref3) param2]
+        | Property3Ary (ref,  adjective,  Var ref2,  degree,  comptarget,  ref3)                -> [addIfRightPos ref defvar; addIfRightPos (Var ref2) param1; addIfRightPos ref3 param2]
+        | Property3Ary (ref,  adjective,   ref2,  degree,  comptarget, Var ref3)                -> [addIfRightPos ref defvar; addIfRightPos (Var ref3) param2]
+        | Property3Ary (ref,  adjective,  ref2,  degree,  comptarget,  ref3)                    -> [addIfRightPos ref defvar]
         
         
         
-        | Relation( ref1, Var ref2)                                                             -> [ref1; Var ref2 ]
-        | Relation( ref1,  ref2)                                                                -> [ref1]        
-        | Modifier_Adv(  ref, adverb,  degree)                                                  -> [ref]
-        | Modifier_pp ( ref1,  preposition, Var ref2)                                           -> [ref1; Var ref2]
-        | HasPart( groupref, Var memberref)                                                     -> [groupref; Var memberref]
-        | Query( ref,  questionWord)                                                            -> [ref]
+        | Relation( ref1, Var ref2)                                                             -> [addIfRightPos  ref1 param1;addIfRightPos (Var ref2) param2 ]
+        | Relation( ref1,  ref2)                                                                -> [addIfRightPos  ref1 param1]        
+        | Modifier_Adv(  ref, adverb,  degree)                                                  -> [addIfRightPos ref defvar]
+        | Modifier_pp ( ref1,  preposition, Var ref2)                                           -> [addIfRightPos ref1 defvar; addIfRightPos (Var ref2) param1]
+        | HasPart( groupref, Var memberref)                                                     -> [addIfRightPos groupref defvar; addIfRightPos (Var memberref) param1]
+        | Query( ref,  questionWord)                                                            -> [addIfRightPos ref defvar]
         | Operator2 (op, b, c)                                                                  -> [] (*TODO : gérer ces cas*)
         | Operator1 (op, b)                                                                     -> []
         | String a                                                                              -> []
         | Named  a                                                                              -> []
-        | SubDrs(a, dr)                                                                         -> [Var a]
-        | Rien                                                                                  -> [] ;;
+        | SubDrs(a, dr)                                                                         -> []
+        | Rien                                                                                  -> [] in
+        L.filter_map (fun x -> x) lst
+        ;;
+
 (*TODO : une fois la liste terminée, filtrer les None et transformer les Some en Var*)
+
+
+
+let resolv2Terme atomDest atomSrc rul1 rul2 =
+        let varsAtom1 = getVarsAccordingToRule atomDest rul1 in
+        let varsAtom2 = getVarsAccordingToRule atomSrc rul2 in
+        let varLiees = intersect varsAtom1 varsAtom2 |> L.unique in
+        if L.length varLiees > 0 then
+                let defvar, alterateur, param1, param2, param3 = rul2 in
+                if  L.length varLiees > 1 then Printf.eprintf "Attention !! 2 var Liées %s \n" (L.map stringOfVar varLiees |> S.concat "; ");
+                let varToReplace = L.hd varLiees in (*Normalement il n'y en a qu'une !!!*)
+                let replaceIfVar varlocal =
+                        if varlocal = varToReplace then SubAtom(atomSrc) else varlocal in
+                (*On met atomDest dans atomSrc*)
+                let termeSubst = 
+                        match atomDest with
+                        | Object(  ref,  name,  countable,  unittype,  op, count,l,x,y)          -> Object(  ref,  name,  countable,  unittype,  op, count,(if alterateur then atomSrc::l else l),x,y)
+                        | PredicateTransitive( ref, verb, l,  subject , cod, gramnbr )           -> PredicateTransitive( ref, verb, (if alterateur then atomSrc::l else l), replaceIfVar  subject ,replaceIfVar cod, gramnbr )
+                        | PredicateDiTransitive(  ref ,verb,l,  subject ,  cod,  coi, gramnbr)   -> PredicateDiTransitive(  ref ,verb,(if alterateur then atomSrc::l else l),replaceIfVar subject ,replaceIfVar cod,replaceIfVar coi, gramnbr)
+                        | PredicateIntransitive(  ref , verb,l, subject, gramnbr)                -> PredicateIntransitive(  ref , verb,(if alterateur then atomSrc::l else l),replaceIfVar subject, gramnbr)
+                        | Property1Ary (ref,  adjective, degree)                                 -> Property1Ary (ref,  adjective, degree)
+                        | Property2Ary (ref,  adjective,  degree, ref2)                          -> Property2Ary (ref,  adjective,  degree,replaceIfVar ref2)
+                        | Property3Ary (ref,  adjective,  ref2,  degree,  comptarget, ref3)     ->  Property3Ary (ref,  adjective, replaceIfVar  ref2,  degree,  comptarget,replaceIfVar ref3)
+                        | Relation( ref1,  ref2)                                                ->  Relation( replaceIfVar ref1, replaceIfVar ref2)
+                        | Modifier_Adv(  ref, adverb,  degree)                                  ->  Modifier_Adv(  ref, adverb,  degree)
+                        | Modifier_pp ( ref1,  preposition, ref2)                               ->  Modifier_pp ( ref1,  preposition,replaceIfVar ref2)
+                        | HasPart( groupref, memberref)                                         ->  HasPart( groupref, replaceIfVar memberref)
+                        | Query( ref,  questionWord)                                            ->  Query(replaceIfVar ref,  questionWord)
+                        |      _                                                                ->  atomDest in
+                [termeSubst]
+        else [atomDest;atomSrc] ;;
+
+
+(*TODO fair eune fonction à qui on donne la var à remplacer, l'atomSrc à mettre, la source, et qui renvoi id si c'est la var, et SubAtom sinon*)
+
 
 (* INTERPRÉTEUR DE RÈGLE
  *
