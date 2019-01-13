@@ -33,3 +33,13 @@ let string_of msg pos = string_of_position pos ^ ":\n" ^ msg
 let syntax_error {lex_curr_p=pos} = string_of "Syntax error" pos
 
 let report = print_endline
+
+(*1. Pluton fc  Carré Jupiter/Uranus au début du bélier - Carré à la lune conjoint noeud sud - Mercure en Gémaux
+ * Venu pour découvrir l'amour
+ * I worked hard for that so I must win.
+ * "Si on le cadre trop, il déprime."
+ * Sa névrose, je pense, consiste à ne pas supporter de se tromper (Cadrer = l'autorité parentale "qui sait", enfin c'est ce qu'il croit encore pour les 2/3 ans à venir, lui montrent qu'il se trompe, donc il déprime). Pour lui se tromper, paraitre ridicule, ne pas y arriver, c'est l'horreur et ça le fait déprimer. Se tromper veut dire qu'il ne va plus être aimé.
+ * Quand tu m'as dis "Si on le cadre trop, il déprime.", là on est en plein sur le complexe névrotique, cet exemple est parfait !
+ * Donc, à mon sens, dans les 3 ans à venir, c'est hyper important de lui faire comprendre que c'est PAS GRAVE de se tromper, qu'il peut  se "signer le droit de se tromper", qu'il a le droit d'être ridicule 5 mn et que les gens qui
+ * se foutent de lui, c'est juste des cons, c'est tout.
+ * La seule chose qui importe, c'est qu'il essaye, qu'il fasse l'effort de progresser, et que ça, c'est la seule chose qui compte. Si ça marche pas c'est pas grave, autre chose marchera*)

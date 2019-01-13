@@ -524,13 +524,16 @@ let rec reglex fctest1 fctest2 ruleDest ruleSrc l =
         
 let rul1src, rul1dest = (true, false, false, false, false), (true, true, false, false, false)
 let rul2src, rul2dest = (true, false, false, false, false), (true, true, false, false, false)
+let rul3src, rul3dest = (true, false, false, false, false), (false, false, true, false, false)
 
 let rul8src, rul8dest = (true, false, false, false, false), (false, false, true, true, true)
 
 let regle1 l = reglex is_Property1 is_Object  rul1dest rul1src l
 let regle2 l = reglex is_Modifier_Adv is_Predicate rul2dest rul2src l
+(*let regle3 l = reglex l is_Property2 is_Object rul3dest rul3src l
+let regle4 l = reglex l is_Modifier_pp is_Object rul3dest rul3src l
 
-let regle8 l = reglex is_Object is_Predicate rul8dest rul8src l;;
+let regle8 l = reglex is_Object is_Predicate rul8dest rul8src l;;*)
 
 
 (* TODO : les is_\w+ en param de reglex doivent UNIQUEMENT servir à déterminer le terme dest et le terme src.
